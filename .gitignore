@@ -1,0 +1,44 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Virtual Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Unit test / coverage / cache reports
+.pytest_cache/
+.cache/
+.coverage
+htmlcov/
+nosetests.xml
+coverage.xml
+
+# ROS 2 Build / Install / Log Directories
+build/
+install/
+log/
+
+# IDE & Editor Settings
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.code-workspace
+
+# OS & System Files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
