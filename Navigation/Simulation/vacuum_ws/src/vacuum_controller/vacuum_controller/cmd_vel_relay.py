@@ -15,8 +15,11 @@ from geometry_msgs.msg import Twist, TwistStamped
 class CmdVelRelay(Node):
     def __init__(self):
         super().__init__('cmd_vel_relay')
+        # input_topic lets a second instance stamp Nav2's smoothed output
+        # (/cmd_vel_smoothed); the controller only subscribes to the stamped topic.
+        self.declare_parameter('input_topic', '/cmd_vel')
         self.sub = self.create_subscription(
-            Twist, '/cmd_vel', self._callback, 10)
+            Twist, self.get_parameter('input_topic').value, self._callback, 10)
         self.pub = self.create_publisher(
             TwistStamped, '/diff_drive_controller/cmd_vel', 10)
         self.get_logger().info("CmdVelRelay (Twist -> TwistStamped) started successfully.")

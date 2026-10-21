@@ -101,8 +101,8 @@ def generate_launch_description():
             'output_frame':  'camera_link',
         }],
         remappings=[
-            ('image',       '/camera/depth/image_rect_raw'),
-            ('camera_info', '/camera/color/camera_info'),
+            ('depth',             '/camera/depth/image_rect_raw'),
+            ('depth_camera_info',  '/camera/depth/camera_info'),
             ('scan',        '/scan_from_depth'),
         ],
     )
@@ -164,7 +164,7 @@ def generate_launch_description():
         name='controller_server',
         output='screen',
         parameters=[nav2_yaml, {'use_sim_time': use_sim_time}],
-        remappings=[('cmd_vel', '/diff_drive_controller/cmd_vel_unstamped')],
+        remappings=[('cmd_vel', '/cmd_vel_nav')],
     )])
 
     behavior_server = TimerAction(period=8.0, actions=[Node(
@@ -173,7 +173,7 @@ def generate_launch_description():
         name='behavior_server',
         output='screen',
         parameters=[nav2_yaml, {'use_sim_time': use_sim_time}],
-        remappings=[('cmd_vel', '/diff_drive_controller/cmd_vel_unstamped')],
+        remappings=[('cmd_vel', '/cmd_vel_nav')],
     )])
 
     smoother_server = TimerAction(period=8.0, actions=[Node(
@@ -191,8 +191,8 @@ def generate_launch_description():
         output='screen',
         parameters=[nav2_yaml, {'use_sim_time': use_sim_time}],
         remappings=[
-            ('cmd_vel',         '/diff_drive_controller/cmd_vel_unstamped'),
-            ('cmd_vel_smoothed', '/diff_drive_controller/cmd_vel_unstamped'),
+            ('cmd_vel',          '/cmd_vel_nav'),
+            ('cmd_vel_smoothed', '/cmd_vel_smoothed'),
         ],
     )])
 

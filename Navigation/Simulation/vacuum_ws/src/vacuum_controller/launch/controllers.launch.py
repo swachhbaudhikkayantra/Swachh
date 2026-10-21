@@ -26,7 +26,8 @@ import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, TimerAction
-from launch.substitutions import LaunchConfiguration
+from launch.conditions import IfCondition, UnlessCondition
+from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch_ros.actions import Node
 
 
@@ -49,6 +50,22 @@ def generate_launch_description():
     declare_enable_cam_diag = DeclareLaunchArgument(
         'enable_camera_diagnostics', default_value='true',
         description='Enable D435i camera diagnostics node')
+
+    # odom_mode: 'clean' = controller publishes odom TF, topic_tools relay -> /odom
+    #            'eval'  = vacuum_eval/odom_noise_node publishes /odom + odom TF
+    #                      (docs/specs/01 section 1.3)
+    declare_odom_mode = DeclareLaunchArgument(
+        'odom_mode', default_value='clean', description='clean | eval')
+    declare_odom_noise = DeclareLaunchArgument(
+        'odom_noise', default_value='false',
+        description='eval mode only: inject drift noise')
+    declare_odom_noise_seed = DeclareLaunchArgument(
+        'odom_noise_seed', default_value='0')
+    odom_mode = LaunchConfiguration('odom_mode')
+    is_eval = IfCondition(PythonExpression(["'", odom_mode, "' == 'eval'"]))
+    not_eval = UnlessCondition(PythonExpression(["'", odom_mode, "' == 'eval'"]))
+    ddc_no_tf_yaml = os.path.join(
+        get_package_share_directory('vacuum_eval'), 'config', 'ddc_no_tf.yaml')
 
     use_sim_time = LaunchConfiguration('use_sim_time')
     enable_noise = LaunchConfiguration('enable_odom_noise')
@@ -85,7 +102,18 @@ def generate_launch_description():
                 prefix=['python3.12'],
                 arguments=['diff_drive_controller', '--activate'],
                 output='screen',
-            )
+                condition=not_eval,
+            ),
+            Node(
+                package='controller_manager',
+                executable='spawner',
+                name='ddc_spawner',
+                prefix=['python3.12'],
+                arguments=['diff_drive_controller', '--activate',
+                           '--param-file', ddc_no_tf_yaml],
+                output='screen',
+                condition=is_eval,
+            ),
         ],
     )
 
@@ -107,6 +135,24 @@ def generate_launch_description():
         ],
     )
 
+    # Second relay: Nav2's velocity_smoother output (/cmd_vel_smoothed) is stamped and
+    # forwarded to the controller; diff_drive_controller only subscribes to the
+    # stamped /diff_drive_controller/cmd_vel (verified 2026-10-20).
+    cmd_vel_relay_nav = TimerAction(
+        period=12.0,
+        actions=[
+            Node(
+                package='vacuum_controller',
+                executable='cmd_vel_relay.py',
+                name='cmd_vel_relay_nav',
+                prefix=['python3.12'],
+                parameters=[{'use_sim_time': use_sim_time,
+                             'input_topic': '/cmd_vel_smoothed'}],
+                output='screen',
+            )
+        ],
+    )
+
     # ── odom relay ─────────────────────────────────────────────────
     # diff_drive_controller publishes /diff_drive_controller/odom.
     # Relay to /odom for Nav2, RTAB-Map and other downstream nodes.
@@ -120,6 +166,26 @@ def generate_launch_description():
                 arguments=['/diff_drive_controller/odom', '/odom'],
                 parameters=[{'use_sim_time': use_sim_time}],
                 output='screen',
+                condition=not_eval,
+            )
+        ],
+    )
+
+    # ── Evaluation odometry (odom_mode:=eval): noise node in the odom path ──
+    eval_odom = TimerAction(
+        period=12.0,
+        actions=[
+            Node(
+                package='vacuum_eval',
+                executable='odom_noise_node',
+                name='odom_noise_node',
+                parameters=[{
+                    'use_sim_time': use_sim_time,
+                    'enable_noise': LaunchConfiguration('odom_noise'),
+                    'seed': LaunchConfiguration('odom_noise_seed'),
+                }],
+                output='screen',
+                condition=is_eval,
             )
         ],
     )
@@ -187,10 +253,15 @@ def generate_launch_description():
         declare_enable_noise,
         declare_enable_diagnostics,
         declare_enable_cam_diag,
+        declare_odom_mode,
+        declare_odom_noise,
+        declare_odom_noise_seed,
         jsb_spawner,
         ddc_spawner,
         cmd_vel_relay,
+        cmd_vel_relay_nav,
         odom_relay,
+        eval_odom,
         odometry_noise_node,
         motion_diagnostics_node,
         camera_diagnostics_node,

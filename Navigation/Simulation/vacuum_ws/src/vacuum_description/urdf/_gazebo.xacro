@@ -114,6 +114,21 @@
     </plugin>
   </gazebo>
 
+  <!-- Ground truth for evaluation (docs/specs/01 section 1.1b): the ros_gz_bridge
+       Pose_V -> TFMessage conversion drops entity names, so the robot's true pose
+       is published by this plugin instead. Read by ground_truth_node. -->
+  <gazebo>
+    <plugin filename="gz-sim-odometry-publisher-system"
+            name="gz::sim::systems::OdometryPublisher">
+      <odom_frame>world</odom_frame>
+      <robot_base_frame>base_footprint</robot_base_frame>
+      <odom_topic>/model/vacuum_robot/ground_truth_odom</odom_topic>
+      <odom_publish_frequency>30</odom_publish_frequency>
+      <dimensions>2</dimensions>
+      <gaussian_noise>0</gaussian_noise>
+    </plugin>
+  </gazebo>
+
   <!-- ═══════════════════════════════════════════════════════
        4. INTEL REALSENSE D435i — RGB-D CAMERA SENSOR (Stage 3)
        ═══════════════════════════════════════════════════════ -->
@@ -209,6 +224,35 @@
         the correct optical frame immediately.
       -->
       <gz_frame_id>camera_color_optical_frame</gz_frame_id>
+    </sensor>
+  </gazebo>
+
+
+  <!-- Contact sensors (spec 06 6.2): body collisions only, not wheels/caster. Names are post-lumping. -->
+  <gazebo reference="base_footprint">
+    <sensor name="chassis_contact" type="contact">
+      <always_on>true</always_on>
+      <update_rate>50</update_rate>
+      <contact>
+        <collision>base_footprint_fixed_joint_lump__base_link_collision</collision>
+        <topic>/vacuum_robot/contacts/chassis</topic>
+      </contact>
+    </sensor>
+    <sensor name="camera_mount_contact" type="contact">
+      <always_on>true</always_on>
+      <update_rate>50</update_rate>
+      <contact>
+        <collision>base_footprint_fixed_joint_lump__camera_mount_link_collision_2</collision>
+        <topic>/vacuum_robot/contacts/camera_mount</topic>
+      </contact>
+    </sensor>
+    <sensor name="camera_contact" type="contact">
+      <always_on>true</always_on>
+      <update_rate>50</update_rate>
+      <contact>
+        <collision>base_footprint_fixed_joint_lump__camera_link_collision_3</collision>
+        <topic>/vacuum_robot/contacts/camera</topic>
+      </contact>
     </sensor>
   </gazebo>
 

@@ -31,7 +31,9 @@ Blacklist persistence:
   After blacklist_expiry_sec, the frontier is eligible again.
 
 Publications:
-  /exploration/status  (std_msgs/String — JSON)  — FSM state + metrics
+  /exploration/status       (std_msgs/String — JSON)  — FSM state + metrics
+  /exploration/goal_events  (std_msgs/String — JSON)  — one event at goal start and end
+  /exploration/finished     (std_msgs/Bool, transient-local) — true once FINISHED
 """
 
 import json
@@ -43,16 +45,17 @@ from enum import Enum
 from typing import Deque, List, Optional, Set
 
 import numpy as np
+from scipy import ndimage
 import rclpy
 from rclpy.action import ActionClient
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSDurabilityPolicy
 
 from action_msgs.msg import GoalStatus
-from geometry_msgs.msg import PoseArray, PoseStamped
+from geometry_msgs.msg import PoseArray, PoseStamped, Twist
 from nav_msgs.msg import OccupancyGrid, Odometry
 from nav2_msgs.action import NavigateToPose
-from std_msgs.msg import String
+from std_msgs.msg import Bool, String
 from visualization_msgs.msg import Marker, MarkerArray
 
 from vacuum_exploration.frontier_detector import Frontier
@@ -112,6 +115,17 @@ class ExplorationManager(Node):
         self.declare_parameter('stationary_vel_threshold',       0.02)
         self.declare_parameter('oscillation_distance',           0.30)
         self.declare_parameter('oscillation_timeout_sec',        15.0)
+        self.declare_parameter('blacklist_radius',               0.50)
+        # RTAB-Map publishes no map until the robot has moved (verified 2026-10-20), so
+        # with no map after bootstrap_wait_sec the robot turns in place for bootstrap_spin_sec.
+        # Frontier centroids lie on the edge of unknown space and are often unplannable
+        # ("no valid path found"). Goals are snapped to the nearest known-free cell
+        # that is at least goal_snap_clearance_m from any non-free cell.
+        self.declare_parameter('goal_snap_clearance_m',          0.30)
+        self.declare_parameter('goal_snap_max_m',                1.50)
+        self.declare_parameter('bootstrap_wait_sec',             3.0)
+        self.declare_parameter('bootstrap_spin_sec',             8.0)
+        self.declare_parameter('bootstrap_spin_wz',              0.4)
         # Goal selector weights
         self.declare_parameter('weight_info_gain',               1.0)
         self.declare_parameter('weight_distance',                1.5)
@@ -128,6 +142,13 @@ class ExplorationManager(Node):
         self._stationary_vel_thresh    = p('stationary_vel_threshold')
         self._oscillation_dist         = p('oscillation_distance')
         self._oscillation_timeout      = p('oscillation_timeout_sec')
+        self._blacklist_radius         = p('blacklist_radius')
+        self._snap_clearance           = p('goal_snap_clearance_m')
+        self._snap_max                 = p('goal_snap_max_m')
+        self._bootstrap_wait           = p('bootstrap_wait_sec')
+        self._bootstrap_spin           = p('bootstrap_spin_sec')
+        self._bootstrap_wz             = p('bootstrap_spin_wz')
+        self._wait_map_since: Optional[float] = None
 
         # ── Goal Selector ─────────────────────────────────────────────────────
         self._selector = GoalSelector(
@@ -154,6 +175,14 @@ class ExplorationManager(Node):
         self._goal_handle = None
         self._goal_result: Optional[int] = None  # GoalStatus code
         self._goal_accepted = False
+        self._goal_seq = 0                       # guards stale callbacks (also bumped on cancel)
+        self._event_seq = 0                      # 1-based goal number used in goal_events
+        self._goal_rejected = False
+        self._goal_error_code = 0
+        self._goal_sent_time: Optional[float] = None
+        self._goal_xy = (0.0, 0.0)                # snapped goal actually sent
+        self._osc_ref = None                     # (x, y, t) reference pose for oscillation check
+        self._robot_ang_vel = 0.0
 
         # ── Metrics / tracking ────────────────────────────────────────────────
         self._goals_sent      = 0
@@ -174,6 +203,8 @@ class ExplorationManager(Node):
 
         # ── Map data ─────────────────────────────────────────────────────────
         self._latest_map: Optional[OccupancyGrid] = None
+        self._map_free = 0
+        self._map_unknown = 0
 
         # ── Subscriptions ─────────────────────────────────────────────────────
         map_qos = QoSProfile(
@@ -192,9 +223,17 @@ class ExplorationManager(Node):
         self._status_pub        = self.create_publisher(String, '/exploration/status', 10)
         self._selected_goal_pub = self.create_publisher(PoseStamped, '/exploration/current_goal', 10)
         self._selected_marker_pub = self.create_publisher(MarkerArray, '/exploration/selected_marker', 10)
+        self._goal_events_pub = self.create_publisher(
+            String, '/exploration/goal_events',
+            QoSProfile(depth=50, reliability=QoSReliabilityPolicy.RELIABLE))
+        self._cmd_pub = self.create_publisher(Twist, '/cmd_vel_nav', 10)
+        self._finished_pub = self.create_publisher(
+            Bool, '/exploration/finished',
+            QoSProfile(depth=1, reliability=QoSReliabilityPolicy.RELIABLE,
+                       durability=QoSDurabilityPolicy.TRANSIENT_LOCAL))
 
         # ── FSM Timer (10 Hz) ─────────────────────────────────────────────────
-        self.create_timer(0.10, self._fsm_tick)
+        self._fsm_timer = self.create_timer(0.10, self._fsm_tick)
 
         self.get_logger().info('ExplorationManager started. Waiting for Nav2...')
 
@@ -202,7 +241,10 @@ class ExplorationManager(Node):
 
     def _map_callback(self, msg: OccupancyGrid) -> None:
         self._latest_map = msg
-        free = sum(1 for v in msg.data if v == 0)
+        arr = np.asarray(msg.data, dtype=np.int8)
+        free = int(np.count_nonzero(arr == 0))
+        self._map_free = free
+        self._map_unknown = int(np.count_nonzero(arr == -1))
         t = self.get_clock().now().nanoseconds / 1e9
         self._map_free_history.append((t, free))
 
@@ -220,14 +262,22 @@ class ExplorationManager(Node):
 
     def _odom_callback(self, msg: Odometry) -> None:
         self._robot_linear_vel = abs(msg.twist.twist.linear.x)
+        self._robot_ang_vel = abs(msg.twist.twist.angular.z)
         rx = msg.pose.pose.position.x
         ry = msg.pose.pose.position.y
         t  = self.get_clock().now().nanoseconds / 1e9
 
-        if self._last_robot_x is not None:
-            moved = math.hypot(rx - self._last_robot_x, ry - self._last_robot_y)
-            if moved > 0.05:
+        # Progress = displacement of at least `oscillation_distance` from a reference
+        # pose; in-place rotation (recoveries) also counts as activity.
+        if self._osc_ref is None:
+            self._osc_ref = (rx, ry, t)
+        else:
+            ox, oy, _ = self._osc_ref
+            if math.hypot(rx - ox, ry - oy) >= self._oscillation_dist:
+                self._osc_ref = (rx, ry, t)
                 self._last_move_time = t
+        if self._robot_ang_vel >= 0.05:
+            self._last_move_time = t
 
         self._last_robot_x = rx
         self._last_robot_y = ry
@@ -246,10 +296,20 @@ class ExplorationManager(Node):
             self._state = ExplorationState.WAITING_FOR_MAP
 
         elif self._state == ExplorationState.WAITING_FOR_MAP:
+            if self._wait_map_since is None:
+                self._wait_map_since = current_time
             if self._map_has_free_cells():
                 self.get_logger().info('Map received with free cells. Beginning frontier detection.')
                 self._last_move_time = current_time
                 self._state = ExplorationState.DETECT_FRONTIERS
+            else:
+                waited = current_time - self._wait_map_since
+                if self._bootstrap_wait <= waited < self._bootstrap_wait + self._bootstrap_spin:
+                    tw = Twist()
+                    tw.angular.z = self._bootstrap_wz
+                    self._cmd_pub.publish(tw)
+                    if waited - self._bootstrap_wait < 0.15:
+                        self.get_logger().info('No map yet - turning in place to start SLAM.')
 
         elif self._state == ExplorationState.DETECT_FRONTIERS:
             if self._frontiers:
@@ -271,7 +331,7 @@ class ExplorationManager(Node):
                 frontiers=self._frontiers,
                 robot_x=robot_x,
                 robot_y=robot_y,
-                blacklisted_ids=self._blacklisted_ids,
+                blacklisted_ids=self._effective_blacklisted_ids(),
                 occupancy_grid=self._latest_map,
             )
             if chosen is None:
@@ -292,18 +352,35 @@ class ExplorationManager(Node):
                 self.get_logger().error('Nav2 NavigateToPose action server not available!')
                 self._state = ExplorationState.DETECT_FRONTIERS
                 return
+            snapped = self._snap_goal(self._current_frontier)
+            if snapped is None:
+                self.get_logger().warning(
+                    f'No free cell with {self._snap_clearance:.2f} m clearance within '
+                    f'{self._snap_max:.1f} m of frontier #{self._current_frontier.id}; '
+                    'blacklisting without sending a goal.')
+                self._blacklist_frontier(self._current_frontier, current_time, 'no_snap')
+                self._current_frontier = None
+                self._state = ExplorationState.DETECT_FRONTIERS
+                return
+            self._goal_xy = snapped
             self._send_nav_goal(self._current_frontier)
             self._goal_start_time = current_time
             self._last_move_time  = current_time
+            self._osc_ref = None
             self._goals_sent += 1
+            self._emit_goal_event('started', current_time)
             self._state = ExplorationState.NAVIGATING
 
         elif self._state == ExplorationState.NAVIGATING:
             # Check goal result
             if self._goal_result is not None:
                 if self._goal_result == GoalStatus.STATUS_SUCCEEDED:
+                    self._emit_goal_event('ended', current_time, 'succeeded')
                     self._state = ExplorationState.GOAL_REACHED
                 else:
+                    self._emit_goal_event(
+                        'ended', current_time,
+                        'rejected' if self._goal_rejected else 'nav_aborted')
                     self._blacklist_frontier(self._current_frontier, current_time, 'nav2_failure')
                     self._state = ExplorationState.RECOVERING
                 self._goal_result = None
@@ -315,6 +392,7 @@ class ExplorationManager(Node):
                 self.get_logger().warning(
                     f'Goal timeout ({elapsed:.1f}s). Blacklisting frontier #{self._current_frontier.id}')
                 self._cancel_goal()
+                self._emit_goal_event('ended', current_time, 'timeout')
                 self._blacklist_frontier(self._current_frontier, current_time, 'timeout')
                 self._state = ExplorationState.RECOVERING
                 return
@@ -324,6 +402,7 @@ class ExplorationManager(Node):
             if (current_time - last_move) > self._oscillation_timeout:
                 self.get_logger().warning('Oscillation detected. Cancelling goal.')
                 self._cancel_goal()
+                self._emit_goal_event('ended', current_time, 'oscillation')
                 self._blacklist_frontier(self._current_frontier, current_time, 'oscillation')
                 self._state = ExplorationState.RECOVERING
 
@@ -352,11 +431,14 @@ class ExplorationManager(Node):
                 f'  Elapsed         : {(current_time - self._session_start):.1f} s\n'
                 '═══════════════════════════════════════'
             )
-            # Publish final status once then stop ticking
+            # Publish final status and the finished signal once, then stop the FSM
+            # timer; status keeps publishing at 1 Hz so late subscribers see FINISHED.
             self._publish_status(current_time)
-            # Destroy timer to stop FSM
-            # (node stays alive for status queries)
-            raise StopIteration  # caught below in _fsm_tick wrapper
+            self._finished_pub.publish(Bool(data=True))
+            self._fsm_timer.cancel()
+            self.create_timer(1.0, lambda: self._publish_status(
+                self.get_clock().now().nanoseconds / 1e9))
+            return
 
         # Publish status every tick
         self._publish_status(current_time)
@@ -389,24 +471,26 @@ class ExplorationManager(Node):
         return False
 
     def _map_has_free_cells(self) -> bool:
-        if self._latest_map is None:
-            return False
-        return any(v == 0 for v in self._latest_map.data)
+        return self._latest_map is not None and self._map_free > 0
 
     # ── Helper: blacklist management ───────────────────────────────────────────
 
     def _blacklist_frontier(
         self, frontier: Frontier, current_time: float, reason: str
     ) -> None:
-        count = self._failure_counter.get(frontier.id, 0) + 1
-        self._failure_counter[frontier.id] = count
-
+        # Frontier ids are list indices and change between detector cycles, so
+        # blacklist entries are matched by centroid proximity instead.
         existing = next(
-            (b for b in self._blacklist if b.frontier_id == frontier.id), None)
+            (b for b in self._blacklist
+             if math.hypot(b.centroid_x - frontier.centroid_x,
+                           b.centroid_y - frontier.centroid_y) <= self._blacklist_radius),
+            None)
         if existing:
-            existing.failure_count     = count
+            existing.failure_count    += 1
             existing.last_failure_time = current_time
+            count = existing.failure_count
         else:
+            count = 1
             self._blacklist.append(BlacklistEntry(
                 frontier_id=       frontier.id,
                 centroid_x=        frontier.centroid_x,
@@ -415,19 +499,71 @@ class ExplorationManager(Node):
                 last_failure_time= current_time,
                 expiry_sec=        self._blacklist_expiry,
             ))
-
-        self._blacklisted_ids.add(frontier.id)
         self.get_logger().warning(
-            f'Blacklisted frontier #{frontier.id} (reason={reason}, count={count})'
+            f'Blacklisted frontier at ({frontier.centroid_x:.2f}, '
+            f'{frontier.centroid_y:.2f}) (reason={reason}, count={count})'
         )
+
+    def _effective_blacklisted_ids(self) -> Set[int]:
+        """Ids of the current frontiers lying within blacklist_radius of an entry."""
+        ids = set()
+        for f in self._frontiers:
+            for b in self._blacklist:
+                if math.hypot(b.centroid_x - f.centroid_x,
+                              b.centroid_y - f.centroid_y) <= self._blacklist_radius:
+                    ids.add(f.id)
+                    break
+        return ids
 
     def _purge_blacklist(self, current_time: float) -> None:
         expired = [b for b in self._blacklist if b.is_expired(current_time)]
         for entry in expired:
             self._blacklist.remove(entry)
-            self._blacklisted_ids.discard(entry.frontier_id)
             self.get_logger().info(
-                f'Frontier #{entry.frontier_id} removed from blacklist (expired)')
+                f'Blacklist entry at ({entry.centroid_x:.2f}, {entry.centroid_y:.2f}) '
+                'removed (expired)')
+
+    def _snap_goal(self, frontier: Frontier):
+        """Nearest known-free cell (with clearance) to the frontier centroid, or None."""
+        m = self._latest_map
+        if m is None:
+            return None
+        res = m.info.resolution
+        w, h = m.info.width, m.info.height
+        arr = np.asarray(m.data, dtype=np.int8).reshape(h, w)
+        free = arr == 0
+        # distance (m) from every free cell to the nearest non-free cell (unknown/occupied)
+        clearance = ndimage.distance_transform_edt(free) * res
+        ok = clearance >= self._snap_clearance
+        if not ok.any():
+            return None
+        ox, oy = m.info.origin.position.x, m.info.origin.position.y
+        js, is_ = np.nonzero(ok)
+        xs = ox + (is_ + 0.5) * res
+        ys = oy + (js + 0.5) * res
+        d = np.hypot(xs - frontier.centroid_x, ys - frontier.centroid_y)
+        k = int(np.argmin(d))
+        if d[k] > self._snap_max:
+            return None
+        return (float(xs[k]), float(ys[k]))
+
+    # ── Goal events (docs/specs/01 section 1.5) ───────────────────────────────
+
+    def _emit_goal_event(self, event: str, t: float, result: str = '') -> None:
+        f = self._current_frontier
+        msg = {
+            'goal_seq': self._event_seq,
+            'event':    event,
+            't_sent':   self._goal_sent_time if self._goal_sent_time is not None else t,
+            't_end':    t if event == 'ended' else None,
+            'x':        self._goal_xy[0] if f else None,
+            'y':        self._goal_xy[1] if f else None,
+            'result':   result if event == 'ended' else 'started',
+            'nav2_error_code': self._goal_error_code if event == 'ended' else 0,
+            'frontier_x': f.centroid_x if f else None,
+            'frontier_y': f.centroid_y if f else None,
+        }
+        self._goal_events_pub.publish(String(data=json.dumps(msg)))
 
     # ── Nav2 Action Client helpers ─────────────────────────────────────────────
 
@@ -435,16 +571,27 @@ class ExplorationManager(Node):
         goal_msg = NavigateToPose.Goal()
         goal_msg.pose.header.stamp    = self.get_clock().now().to_msg()
         goal_msg.pose.header.frame_id = 'map'
-        goal_msg.pose.pose.position.x = frontier.centroid_x
-        goal_msg.pose.pose.position.y = frontier.centroid_y
+        goal_msg.pose.pose.position.x = self._goal_xy[0]
+        goal_msg.pose.pose.position.y = self._goal_xy[1]
         goal_msg.pose.pose.position.z = 0.0
         goal_msg.pose.pose.orientation.w = 1.0
+
+        # Every goal gets a sequence number; callbacks of earlier goals carry their own
+        # number and are ignored once a newer goal exists (stale-result race).
+        self._goal_seq += 1
+        self._event_seq += 1
+        seq = self._goal_seq
+        self._goal_handle = None
+        self._goal_result = None
+        self._goal_rejected = False
+        self._goal_error_code = 0
+        self._goal_sent_time = self.get_clock().now().nanoseconds / 1e9
 
         send_future = self._nav_client.send_goal_async(
             goal_msg,
             feedback_callback=self._goal_feedback_callback,
         )
-        send_future.add_done_callback(self._goal_response_callback)
+        send_future.add_done_callback(lambda fut, s=seq: self._goal_response_callback(fut, s))
 
         # Publish goal as PoseStamped for RViz
         ps = PoseStamped()
@@ -452,18 +599,28 @@ class ExplorationManager(Node):
         ps.pose   = goal_msg.pose.pose
         self._selected_goal_pub.publish(ps)
 
-    def _goal_response_callback(self, future) -> None:
-        self._goal_handle = future.result()
-        if not self._goal_handle.accepted:
+    def _goal_response_callback(self, future, seq: int) -> None:
+        handle = future.result()
+        if seq != self._goal_seq:
+            # A newer goal was sent (or this one timed out) before the reply arrived.
+            if handle.accepted:
+                handle.cancel_goal_async()
+            return
+        self._goal_handle = handle
+        if not handle.accepted:
             self.get_logger().error('Goal rejected by Nav2!')
+            self._goal_rejected = True
             self._goal_result = GoalStatus.STATUS_ABORTED
             return
         self.get_logger().info('Goal accepted by Nav2.')
-        result_future = self._goal_handle.get_result_async()
-        result_future.add_done_callback(self._goal_result_callback)
+        result_future = handle.get_result_async()
+        result_future.add_done_callback(lambda fut, s=seq: self._goal_result_callback(fut, s))
 
-    def _goal_result_callback(self, future) -> None:
+    def _goal_result_callback(self, future, seq: int) -> None:
+        if seq != self._goal_seq:
+            return                      # result of a cancelled/older goal
         result = future.result()
+        self._goal_error_code = int(getattr(result.result, 'error_code', 0))
         self._goal_result = result.status
 
     def _goal_feedback_callback(self, feedback_msg) -> None:
@@ -474,6 +631,8 @@ class ExplorationManager(Node):
         if self._goal_handle is not None:
             self._goal_handle.cancel_goal_async()
             self._goal_handle = None
+        # Results arriving for this goal are ignored from now on.
+        self._goal_seq += 1
 
     # ── RViz marker for selected frontier ─────────────────────────────────────
 
@@ -502,25 +661,21 @@ class ExplorationManager(Node):
     # ── Status publisher ───────────────────────────────────────────────────────
 
     def _publish_status(self, current_time: float) -> None:
-        free_cells = 0
-        total_cells = 0
         coverage_pct = 0.0
-        if self._latest_map is not None:
-            data = self._latest_map.data
-            free_cells    = sum(1 for v in data if v == 0)
-            unknown_cells = sum(1 for v in data if v == -1)
-            total_relevant = free_cells + unknown_cells
-            if total_relevant > 0:
-                coverage_pct = (free_cells / total_relevant) * 100.0
+        total_relevant = self._map_free + self._map_unknown
+        if total_relevant > 0:
+            coverage_pct = (self._map_free / total_relevant) * 100.0
 
         status = {
             'state':               self._state.value,
             'frontier_id':         self._current_frontier.id if self._current_frontier else -1,
+            # free/(free+unknown) of the live map. NOT real coverage (see docs/specs/03).
             'coverage_pct':        round(coverage_pct, 2),
+            'map_free_ratio_pct':  round(coverage_pct, 2),
             'goals_completed':     self._goals_completed,
             'goals_failed':        self._goals_failed,
             'frontiers_remaining': len(self._frontiers),
-            'blacklisted_count':   len(self._blacklisted_ids),
+            'blacklisted_count':   len(self._blacklist),
             'elapsed_sec':         round(current_time - self._session_start, 1),
         }
         msg = String()

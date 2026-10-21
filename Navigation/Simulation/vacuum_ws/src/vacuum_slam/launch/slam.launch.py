@@ -77,7 +77,8 @@ def generate_launch_description():
 
     declare_environment = DeclareLaunchArgument(
         'environment', default_value='room',
-        choices=['room', 'office', 'apartment', 'corridor', 'large'],
+        choices=['room', 'office', 'apartment', 'corridor', 'large',
+                 'empty_room','cluttered_room','two_rooms_door','multi_room_loop','maze_dead_ends','symmetric_hall'],
         description='Environment label — used for rosbag naming and logging')
 
     declare_database_path = DeclareLaunchArgument(
@@ -160,9 +161,55 @@ def generate_launch_description():
             ('rgb/camera_info', '/camera/color/camera_info'),
             # ── Odometry ──
             ('odom',            '/odom'),
+            # ── Outputs: the stack (frontier detector, Nav2 relay, RViz, evaluation)
+            #    uses the /rtabmap/* names; the node runs without a namespace.
+            ('map',           '/rtabmap/map'),
+            ('info',          '/rtabmap/info'),
+            ('mapData',       '/rtabmap/mapData'),
+            ('mapGraph',      '/rtabmap/mapGraph'),
+            ('mapPath',       '/rtabmap/mapPath'),
+            ('grid_prob_map', '/rtabmap/grid_prob_map'),
+            ('cloud_map',     '/rtabmap/cloud_map'),
         ],
         arguments=['--delete_db_on_start'],
-        condition=UnlessCondition(localization),
+        condition=IfCondition(PythonExpression(["'", delete_db, "' == 'true' and '", localization, "' == 'false'"])),
+    )
+
+
+    # Same node without --delete_db_on_start (delete_db:=false, mapping mode):
+    rtabmap_mapping_keep_db = Node(
+        package='rtabmap_slam',
+        executable='rtabmap',
+        name='rtabmap',
+        output='screen',
+        parameters=[
+            rtabmap_yaml,
+            {
+                'use_sim_time':   use_sim_time,
+                'database_path':  database_path,
+                # Override the Mem/IncrementalMemory in YAML for clarity
+                'Mem/IncrementalMemory': 'true',
+                'Rtabmap/StartNewMapOnLoopClosure': 'false',
+            },
+        ],
+        remappings=[
+            # ── Camera inputs ──
+            ('rgb/image',       '/camera/color/image_raw'),
+            ('depth/image',     '/camera/depth/image_rect_raw'),
+            ('rgb/camera_info', '/camera/color/camera_info'),
+            # ── Odometry ──
+            ('odom',            '/odom'),
+            # ── Outputs: the stack (frontier detector, Nav2 relay, RViz, evaluation)
+            #    uses the /rtabmap/* names; the node runs without a namespace.
+            ('map',           '/rtabmap/map'),
+            ('info',          '/rtabmap/info'),
+            ('mapData',       '/rtabmap/mapData'),
+            ('mapGraph',      '/rtabmap/mapGraph'),
+            ('mapPath',       '/rtabmap/mapPath'),
+            ('grid_prob_map', '/rtabmap/grid_prob_map'),
+            ('cloud_map',     '/rtabmap/cloud_map'),
+        ],
+        condition=IfCondition(PythonExpression(["'", delete_db, "' == 'false' and '", localization, "' == 'false'"])),
     )
 
     # ── RTAB-Map — localisation mode ──────────────────────────────────────
@@ -187,6 +234,15 @@ def generate_launch_description():
             ('depth/image',     '/camera/depth/image_rect_raw'),
             ('rgb/camera_info', '/camera/color/camera_info'),
             ('odom',            '/odom'),
+            # ── Outputs: the stack (frontier detector, Nav2 relay, RViz, evaluation)
+            #    uses the /rtabmap/* names; the node runs without a namespace.
+            ('map',           '/rtabmap/map'),
+            ('info',          '/rtabmap/info'),
+            ('mapData',       '/rtabmap/mapData'),
+            ('mapGraph',      '/rtabmap/mapGraph'),
+            ('mapPath',       '/rtabmap/mapPath'),
+            ('grid_prob_map', '/rtabmap/grid_prob_map'),
+            ('cloud_map',     '/rtabmap/cloud_map'),
         ],
         condition=IfCondition(localization),
     )
@@ -211,6 +267,7 @@ def generate_launch_description():
         declare_localization,
         log_start,
         rtabmap_mapping,
+        rtabmap_mapping_keep_db,
         rtabmap_localisation,
         rviz,
     ])

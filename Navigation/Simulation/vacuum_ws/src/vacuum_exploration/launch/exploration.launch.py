@@ -53,7 +53,8 @@ def generate_launch_description():
     # ── Arguments ─────────────────────────────────────────────────────────────
     declare_environment = DeclareLaunchArgument(
         'environment', default_value='apartment',
-        choices=['apartment', 'office', 'room', 'corridor', 'warehouse'],
+        choices=['apartment', 'office', 'room', 'corridor',
+                 'empty_room','cluttered_room','two_rooms_door','multi_room_loop','maze_dead_ends','symmetric_hall'],
         description='Environment label — used for metrics and bag naming')
 
     declare_launch_sim = DeclareLaunchArgument(
@@ -63,6 +64,22 @@ def generate_launch_description():
     declare_use_rviz = DeclareLaunchArgument(
         'use_rviz', default_value='true',
         description='Launch RViz2 for exploration visualisation')
+
+    # Evaluation passthrough arguments (docs/specs/02 section 2.3)
+    extra_decl = [
+        DeclareLaunchArgument('spawn_x', default_value='0.0'),
+        DeclareLaunchArgument('spawn_y', default_value='0.0'),
+        DeclareLaunchArgument('spawn_yaw', default_value='0.0'),
+        DeclareLaunchArgument('headless', default_value='false',
+                              description='true = gz server only (see sim.launch.py)'),
+        DeclareLaunchArgument('odom_mode', default_value='clean',
+                              description='clean | eval (see sim.launch.py)'),
+        DeclareLaunchArgument('odom_noise', default_value='false'),
+        DeclareLaunchArgument('odom_noise_seed', default_value='0'),
+        DeclareLaunchArgument('database_path', default_value='~/.ros/rtabmap.db'),
+        DeclareLaunchArgument('start_manager', default_value='true',
+                              description='false = run stack without exploration_manager'),
+    ]
 
     environment  = LaunchConfiguration('environment')
     launch_sim   = LaunchConfiguration('launch_sim')
@@ -89,6 +106,14 @@ def generate_launch_description():
         launch_arguments={
             'use_sim_time': 'true',
             'world':        environment,  # pass environment name as world selector
+            'use_rviz':     'false',      # exploration RViz is started separately below
+            'spawn_x':      LaunchConfiguration('spawn_x'),
+            'spawn_y':      LaunchConfiguration('spawn_y'),
+            'spawn_yaw':    LaunchConfiguration('spawn_yaw'),
+            'headless':     LaunchConfiguration('headless'),
+            'odom_mode':    LaunchConfiguration('odom_mode'),
+            'odom_noise':   LaunchConfiguration('odom_noise'),
+            'odom_noise_seed': LaunchConfiguration('odom_noise_seed'),
         }.items(),
         condition=IfCondition(launch_sim),
     )
@@ -103,6 +128,7 @@ def generate_launch_description():
                 'use_sim_time': 'true',
                 'use_rviz':     'false',   # RViz started separately below
                 'delete_db':    'true',
+                'database_path': LaunchConfiguration('database_path'),
                 'environment':  environment,
             }.items(),
         )],
@@ -137,6 +163,7 @@ def generate_launch_description():
             executable='exploration_manager',
             name='exploration_manager',
             output='screen',
+            condition=IfCondition(LaunchConfiguration('start_manager')),
             parameters=[exploration_yaml, {
                 'use_sim_time': True,
                 'environment':  environment,
@@ -186,6 +213,7 @@ def generate_launch_description():
         declare_environment,
         declare_launch_sim,
         declare_use_rviz,
+        *extra_decl,
         log_start,
         sim_launch,
         slam_launch,

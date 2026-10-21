@@ -56,8 +56,7 @@
                 spin_dist="1.57"
                 error_code_id="{spin_error_code}"/>
               <Wait
-                wait_duration="5.0"
-                error_code_id="{wait_error_code}"/>
+                wait_duration="5.0"/>
             </RoundRobin>
           </ReactiveFallback>
         </RecoveryNode>
@@ -76,8 +75,7 @@
             spin_dist="1.57"
             error_code_id="{spin_error_code}"/>
           <Wait
-            wait_duration="5.0"
-            error_code_id="{wait_error_code}"/>
+            wait_duration="5.0"/>
         </RoundRobin>
       </ReactiveFallback>
 

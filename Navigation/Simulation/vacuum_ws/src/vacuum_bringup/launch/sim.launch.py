@@ -21,7 +21,10 @@ Stage 3 changes:
 Launch arguments:
   use_sim_time       [true]           — all nodes use /clock from Gazebo
   use_rviz           [true]           — launch RViz2 alongside Gazebo
-  world              [room]           — shorthand: room/apartment/office/corridor
+  world              [room]           — shorthand: room/apartment/office/corridor/
+                                        empty_room/cluttered_room/two_rooms_door/
+                                        multi_room_loop/maze_dead_ends/symmetric_hall
+  headless           [false]         — gz server only (-r -s), no GUI
   world_file         [empty_world.sdf]— override with absolute SDF path
   spawn_x/y/yaw      [0.0]           — robot initial pose
   enable_odom_noise  [false]          — Gaussian noise on /odom_noisy
@@ -69,6 +72,12 @@ def generate_launch_description():
         'apartment': os.path.join(pkg_gazebo, 'worlds', 'apartment.sdf'),
         'office':    os.path.join(pkg_gazebo, 'worlds', 'office.sdf'),
         'corridor':  os.path.join(pkg_gazebo, 'worlds', 'corridor.sdf'),
+        'empty_room': os.path.join(pkg_gazebo, 'worlds', 'empty_room.sdf'),
+        'cluttered_room': os.path.join(pkg_gazebo, 'worlds', 'cluttered_room.sdf'),
+        'two_rooms_door': os.path.join(pkg_gazebo, 'worlds', 'two_rooms_door.sdf'),
+        'multi_room_loop': os.path.join(pkg_gazebo, 'worlds', 'multi_room_loop.sdf'),
+        'maze_dead_ends': os.path.join(pkg_gazebo, 'worlds', 'maze_dead_ends.sdf'),
+        'symmetric_hall': os.path.join(pkg_gazebo, 'worlds', 'symmetric_hall.sdf'),
     }
 
     # ── Default paths ──────────────────────────────────────────────
@@ -86,7 +95,8 @@ def generate_launch_description():
         description='Launch RViz2 for visualisation')
     declare_world = DeclareLaunchArgument(
         'world', default_value='room',
-        description='World shorthand: room | apartment | office | corridor'
+        description='World shorthand: room | apartment | office | corridor | empty_room |'
+                    ' cluttered_room | two_rooms_door | multi_room_loop | maze_dead_ends | symmetric_hall'
                     ' (ignored if world_file is set)')
 
     # Dynamic world path resolution based on 'world' argument
@@ -96,12 +106,22 @@ def generate_launch_description():
         "'empty_world.sdf' if '", world, "' == 'room' else ",
         "'apartment.sdf' if '", world, "' == 'apartment' else ",
         "'office.sdf' if '", world, "' == 'office' else ",
-        "'corridor.sdf' if '", world, "' == 'corridor' else 'empty_world.sdf')"
+        "'corridor.sdf' if '", world, "' == 'corridor' else ",
+        "'empty_room.sdf' if '", world, "' == 'empty_room' else ",
+        "'cluttered_room.sdf' if '", world, "' == 'cluttered_room' else ",
+        "'two_rooms_door.sdf' if '", world, "' == 'two_rooms_door' else ",
+        "'multi_room_loop.sdf' if '", world, "' == 'multi_room_loop' else ",
+        "'maze_dead_ends.sdf' if '", world, "' == 'maze_dead_ends' else ",
+        "'symmetric_hall.sdf' if '", world, "' == 'symmetric_hall' else ",
+        "'empty_world.sdf')"
     ])
 
     declare_world_file = DeclareLaunchArgument(
         'world_file', default_value=dynamic_world_default,
         description='Absolute path to the Gazebo .sdf world file (overrides world:=)')
+    declare_headless = DeclareLaunchArgument(
+        'headless', default_value='false',
+        description='true = gz server only: -r -s (no GUI)')
     declare_spawn_x = DeclareLaunchArgument(
         'spawn_x', default_value='0.0',
         description='Initial X position of the robot')
@@ -114,6 +134,17 @@ def generate_launch_description():
     declare_enable_noise = DeclareLaunchArgument(
         'enable_odom_noise', default_value='false',
         description='Enable Gaussian noise on /odom_noisy')
+    declare_odom_mode = DeclareLaunchArgument(
+        'odom_mode', default_value='clean',
+        description='clean | eval (eval = vacuum_eval/odom_noise_node in the odom path)')
+    declare_odom_noise = DeclareLaunchArgument(
+        'odom_noise', default_value='false',
+        description='odom_mode:=eval only: inject drift noise')
+    declare_odom_noise_seed = DeclareLaunchArgument(
+        'odom_noise_seed', default_value='0')
+    declare_extra_bridge = DeclareLaunchArgument(
+        'extra_bridge_config', default_value='',
+        description='Optional path to a second ros_gz_bridge config_file (e.g. gz_bridge_dynamic.yaml)')
     declare_enable_diagnostics = DeclareLaunchArgument(
         'enable_diagnostics', default_value='true',
         description='Enable motion diagnostics node')
@@ -155,7 +186,9 @@ def generate_launch_description():
             os.path.join(pkg_ros_gz_sim, 'launch', 'gz_sim.launch.py')
         ),
         launch_arguments={
-            'gz_args': ['-r ', world_file],
+            'gz_args': PythonExpression([
+                "('-r -s ' if '", LaunchConfiguration('headless'),
+                "'.lower() == 'true' else '-r ') + '", world_file, "'"]),
             'on_exit_shutdown': 'true',
         }.items(),
     )
@@ -169,6 +202,17 @@ def generate_launch_description():
         name='ros_gz_bridge',
         parameters=[{'config_file': bridge_config}],
         output='screen',
+    )
+
+    # ── 3c. Optional second bridge (dynamic obstacle topics), only if a path is given
+    extra_bridge = Node(
+        package='ros_gz_bridge',
+        executable='parameter_bridge',
+        name='ros_gz_bridge_extra',
+        parameters=[{'config_file': LaunchConfiguration('extra_bridge_config')}],
+        output='screen',
+        condition=IfCondition(PythonExpression(
+            ["'", LaunchConfiguration('extra_bridge_config'), "' != ''"])),
     )
 
     # ── 4. Spawn robot (delayed 3s) ────────────────────────────────
@@ -203,6 +247,9 @@ def generate_launch_description():
             'use_sim_time':     use_sim_time,
             'enable_odom_noise': enable_odom_noise,
             'enable_diagnostics': enable_diagnostics,
+            'odom_mode':         LaunchConfiguration('odom_mode'),
+            'odom_noise':        LaunchConfiguration('odom_noise'),
+            'odom_noise_seed':   LaunchConfiguration('odom_noise_seed'),
         }.items(),
     )
 
@@ -217,22 +264,39 @@ def generate_launch_description():
         condition=IfCondition(use_rviz),
     )
 
+    # ── 3b. Ground truth (evaluation): OdometryPublisher plugin in the URDF →
+    # /ground_truth/odom_raw (gz_bridge.yaml) → ground_truth_node → /ground_truth/odom
+    ground_truth_node = Node(
+        package='vacuum_eval',
+        executable='ground_truth_node',
+        name='ground_truth_node',
+        parameters=[{'use_sim_time': use_sim_time}],
+        output='screen',
+    )
+
     return LaunchDescription([
         # Declare all arguments first
         declare_use_sim_time,
         declare_use_rviz,
         declare_world,
         declare_world_file,
+        declare_headless,
         declare_spawn_x,
         declare_spawn_y,
         declare_spawn_yaw,
         declare_enable_noise,
         declare_enable_diagnostics,
+        declare_odom_mode,
+        declare_odom_noise,
+        declare_odom_noise_seed,
+        declare_extra_bridge,
 
         # Launch in dependency order
         robot_state_publisher,  # must be before spawn (provides /robot_description)
         gazebo,
+        extra_bridge,
         ros_gz_bridge,          # /clock + camera topics (Stage 3)
+        ground_truth_node,      # /ground_truth/odom
         spawn_robot,            # delayed 3s — triggers gz_ros2_control init
         controllers,            # delayed internally (5s JSB, 6s DDC, 10s camera_diag)
         rviz,

@@ -63,20 +63,43 @@
   gz_type_name:   "gz.msgs.CameraInfo"
   direction: GZ_TO_ROS
 
-# ── D435i Depth PointCloud2 ───────────────────────────────────────────────────
-- ros_topic_name: "/camera/depth/points"
-  gz_topic_name:  "/camera/image_raw/points"
-  ros_type_name:  "sensor_msgs/msg/PointCloud2"
-  gz_type_name:   "gz.msgs.PointCloudPacked"
+# ── D435i Depth PointCloud2 — DISABLED for evaluation runs ─────────────────────
+# A 640x480 cloud at 30 Hz through the bridge costs a large share of the CPU and nothing in
+# the SLAM/Nav2/evaluation pipeline uses it (only RViz and camera_diagnostics). Re-enable by
+# uncommenting for visualisation.
+# # ── D435i Depth PointCloud2 ───────────────────────────────────────────────────
+# - ros_topic_name: "/camera/depth/points"
+#   gz_topic_name:  "/camera/image_raw/points"
+#   ros_type_name:  "sensor_msgs/msg/PointCloud2"
+#   gz_type_name:   "gz.msgs.PointCloudPacked"
+#   direction: GZ_TO_ROS
+
+# ── Ground Truth Pose ────────────────────────────────────────────────────────
+# Not bridged here: the gz topic name contains the world name, which differs per
+# world file. sim.launch.py adds a separate 'gt_bridge' node that reads the world
+# name from the SDF (docs/specs/01 section 1.1) and publishes /ground_truth/poses.
+
+# ── Ground truth odometry (OdometryPublisher plugin in _gazebo.xacro) ────────
+- ros_topic_name: "/ground_truth/odom_raw"
+  gz_topic_name:  "/model/vacuum_robot/ground_truth_odom"
+  ros_type_name:  "nav_msgs/msg/Odometry"
+  gz_type_name:   "gz.msgs.Odometry"
   direction: GZ_TO_ROS
 
-# ── Ground Truth Pose (Stage 4A — ATE/RPE evaluation) ────────────────────────
-# Bridges the Gazebo model pose to /ground_truth/pose for comparison with
-# /rtabmap/odom in evaluate_trajectory.py.
-# Topic: /world/vacuum_world/pose/info publishes ALL model poses.
-# Filtered to vacuum_robot in the evaluation script.
-- ros_topic_name: "/ground_truth/poses"
-  gz_topic_name:  "/world/vacuum_world/pose/info"
-  ros_type_name:  "tf2_msgs/msg/TFMessage"
-  gz_type_name:   "gz.msgs.Pose_V"
+- ros_topic_name: "/vacuum_robot/contacts/chassis"
+  gz_topic_name:  "/vacuum_robot/contacts/chassis"
+  ros_type_name:  "ros_gz_interfaces/msg/Contacts"
+  gz_type_name:   "gz.msgs.Contacts"
+  direction: GZ_TO_ROS
+
+- ros_topic_name: "/vacuum_robot/contacts/camera_mount"
+  gz_topic_name:  "/vacuum_robot/contacts/camera_mount"
+  ros_type_name:  "ros_gz_interfaces/msg/Contacts"
+  gz_type_name:   "gz.msgs.Contacts"
+  direction: GZ_TO_ROS
+
+- ros_topic_name: "/vacuum_robot/contacts/camera"
+  gz_topic_name:  "/vacuum_robot/contacts/camera"
+  ros_type_name:  "ros_gz_interfaces/msg/Contacts"
+  gz_type_name:   "gz.msgs.Contacts"
   direction: GZ_TO_ROS

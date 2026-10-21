@@ -1,0 +1,78 @@
+# Obstacle-avoidance scenario worlds (spec 09 9.5-9.7). Coordinates in world frame.
+worlds:
+  avoid_head_on:
+    sdf_file: vacuum_gazebo/worlds/avoid_head_on.sdf
+    world_name_in_sdf: avoid_head_on_world
+    timeout_sim_sec: 120
+    reachable_seed: [-2, 0]
+    wall_models: "^wall_|^ceiling$"
+    scenario:
+      start: [-2, 0, 0.0]
+      goal: [2, 0, 0.0]
+  avoid_narrow_gap:
+    sdf_file: vacuum_gazebo/worlds/avoid_narrow_gap.sdf
+    world_name_in_sdf: avoid_narrow_gap_world
+    timeout_sim_sec: 120
+    reachable_seed: [-2, 0]
+    wall_models: "^wall_|^ceiling$"
+    scenario:
+      start: [-2, 0, 0.0]
+      goal: [2, 0, 0.0]
+  avoid_narrow_gap_wide:
+    sdf_file: vacuum_gazebo/worlds/avoid_narrow_gap_wide.sdf
+    world_name_in_sdf: avoid_narrow_gap_wide_world
+    timeout_sim_sec: 120
+    reachable_seed: [-2, 0]
+    wall_models: "^wall_|^ceiling$"
+    scenario:
+      start: [-2, 0, 0.0]
+      goal: [2, 0, 0.0]
+  avoid_u_trap:
+    sdf_file: vacuum_gazebo/worlds/avoid_u_trap.sdf
+    world_name_in_sdf: avoid_u_trap_world
+    timeout_sim_sec: 120
+    reachable_seed: [-2, 0]
+    wall_models: "^wall_|^ceiling$"
+    scenario:
+      start: [-2, 0, 0.0]
+      goal: [2, 0, 0.0]
+  avoid_cluster:
+    sdf_file: vacuum_gazebo/worlds/avoid_cluster.sdf
+    world_name_in_sdf: avoid_cluster_world
+    timeout_sim_sec: 120
+    reachable_seed: [-2, 0]
+    wall_models: "^wall_|^ceiling$"
+    scenario:
+      start: [-2, 0, 0.0]
+      goal: [2, 0, 0.0]
+  avoid_dead_end:
+    sdf_file: vacuum_gazebo/worlds/avoid_dead_end.sdf
+    world_name_in_sdf: avoid_dead_end_world
+    timeout_sim_sec: 120
+    reachable_seed: [-2, -1.2]
+    wall_models: "^wall_|^ceiling$"
+    scenario:
+      start: [-2, -1.2, 0.0]
+      goal: [1.2, 1.2, 0.0]
+  avoid_dynamic_cross:
+    sdf_file: vacuum_gazebo/worlds/avoid_dynamic_cross.sdf
+    world_name_in_sdf: avoid_dynamic_cross_world
+    timeout_sim_sec: 120
+    reachable_seed: [-2, 0]
+    wall_models: "^wall_|^ceiling$"
+    scenario:
+      start: [-2, 0, 0.0]
+      goal: [2, 0, 0.0]
+    dynamic_obstacles:
+      dyn_box_1: {size: [0.4, 0.4], waypoints: [[0, -1.6], [0, 1.6]], speed: 0.25, start_delay_s: 0.0}
+  avoid_dynamic_sudden:
+    sdf_file: vacuum_gazebo/worlds/avoid_dynamic_sudden.sdf
+    world_name_in_sdf: avoid_dynamic_sudden_world
+    timeout_sim_sec: 120
+    reachable_seed: [-2, 0]
+    wall_models: "^wall_|^ceiling$"
+    scenario:
+      start: [-2, 0, 0.0]
+      goal: [2, 0, 0.0]
+    dynamic_obstacles:
+      dyn_box_1: {size: [0.4, 0.4], waypoints: [[0.6, -1.3], [0.6, 1.3]], speed: 0.5, start_delay_s: 0.0}
