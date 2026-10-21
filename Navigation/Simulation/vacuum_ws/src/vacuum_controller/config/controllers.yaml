@@ -65,7 +65,7 @@ diff_drive_controller:
 
     # Correction multipliers for manufacturing tolerances.
     # Start at 1.0. Tune during hardware calibration in Stage 10.
-    wheel_separation_multiplier: 1.0
+    wheel_separation_multiplier: 1.0   # was 0.945: fudge overshot (odom/GT yaw 0.947 -> 1.06); slip non-stationary, measure drift instead
     left_wheel_radius_multiplier: 1.0
     right_wheel_radius_multiplier: 1.0
 
@@ -104,7 +104,7 @@ diff_drive_controller:
 
     # cmd_vel_timeout: stop the robot if no command received for this many seconds.
     # This is a critical safety feature — prevents runaway on network interruption.
-    cmd_vel_timeout: 0.5  # seconds
+    cmd_vel_timeout: 0.5  # seconds (was 1.5: masked a starved controller)
 
     # ── Velocity limits ───────────────────────────────────────────────────────
     # These limits are applied AFTER the command is received.

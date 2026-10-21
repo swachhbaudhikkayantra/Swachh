@@ -88,10 +88,7 @@
           <geometry>
             <plane><normal>0 0 1</normal><size>20 20</size></plane>
           </geometry>
-          <material>
-            <ambient>0.7 0.65 0.5 1</ambient>
-            <diffuse>0.7 0.65 0.5 1</diffuse>
-          </material>
+          <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse><pbr><metal><albedo_map>textures/floor_3.png</albedo_map><roughness>1.0</roughness><metalness>0.0</metalness></metal></pbr></material>
         </visual>
       </link>
     </model>
@@ -109,7 +106,7 @@
         <collision name="col"><geometry><box><size>6.4 0.2 3.0</size></box></geometry></collision>
         <visual name="vis">
           <geometry><box><size>6.4 0.2 3.0</size></box></geometry>
-          <material><ambient>0.9 0.9 0.85 1</ambient><diffuse>0.9 0.9 0.85 1</diffuse></material>
+          <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse><pbr><metal><albedo_map>textures/wall_07.png</albedo_map><roughness>1.0</roughness><metalness>0.0</metalness></metal></pbr></material>
         </visual>
       </link>
     </model>
@@ -122,7 +119,7 @@
         <collision name="col"><geometry><box><size>6.4 0.2 3.0</size></box></geometry></collision>
         <visual name="vis">
           <geometry><box><size>6.4 0.2 3.0</size></box></geometry>
-          <material><ambient>0.9 0.9 0.85 1</ambient><diffuse>0.9 0.9 0.85 1</diffuse></material>
+          <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse><pbr><metal><albedo_map>textures/wall_12.png</albedo_map><roughness>1.0</roughness><metalness>0.0</metalness></metal></pbr></material>
         </visual>
       </link>
     </model>
@@ -135,7 +132,7 @@
         <collision name="col"><geometry><box><size>0.2 5.2 3.0</size></box></geometry></collision>
         <visual name="vis">
           <geometry><box><size>0.2 5.2 3.0</size></box></geometry>
-          <material><ambient>0.88 0.88 0.82 1</ambient><diffuse>0.88 0.88 0.82 1</diffuse></material>
+          <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse><pbr><metal><albedo_map>textures/wall_01.png</albedo_map><roughness>1.0</roughness><metalness>0.0</metalness></metal></pbr></material>
         </visual>
       </link>
     </model>
@@ -148,7 +145,7 @@
         <collision name="col"><geometry><box><size>0.2 5.2 3.0</size></box></geometry></collision>
         <visual name="vis">
           <geometry><box><size>0.2 5.2 3.0</size></box></geometry>
-          <material><ambient>0.88 0.88 0.82 1</ambient><diffuse>0.88 0.88 0.82 1</diffuse></material>
+          <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse><pbr><metal><albedo_map>textures/wall_10.png</albedo_map><roughness>1.0</roughness><metalness>0.0</metalness></metal></pbr></material>
         </visual>
       </link>
     </model>
@@ -343,7 +340,7 @@
       <static>true</static>
       <pose>-0.5 0.5 0.01 0 0 0</pose>
       <link name="link">
-        <collision name="col"><geometry><box><size>2.0 1.5 0.02</size></box></geometry></collision>
+        <!-- visual only: the 2 cm edge was a wall for the 1.8 cm-radius caster -->
         <visual name="vis">
           <geometry><box><size>2.0 1.5 0.02</size></box></geometry>
           <material><ambient>0.55 0.1 0.1 1</ambient><diffuse>0.55 0.1 0.1 1</diffuse></material>

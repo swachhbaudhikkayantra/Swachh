@@ -102,3 +102,27 @@ def test_t075_rate_floor_gap():
                      'event': np.array(['started', 'ended'], dtype=object)}
     pct, flags = topic_rate_health(r)
     assert pct['cmd_nav'] == 0.0 and flags['cmd_nav'].sum() > 0
+
+
+def test_wall_clock_latency_primary():
+    ev = np.array(['cmd_motion', 'stop'], dtype=object)
+    r = Run(responsiveness_events={
+        'event': ev, 't_a': np.array([10.0, 20.0]), 't_b': np.array([10.1, 20.1]),
+        'latency_s': np.array([0.1, 0.1]), 'wall_latency_s': np.array([0.3, 0.2])},
+        meta={'stack': 'bare'})
+    m = compute_responsiveness_metrics(r)
+    assert m['resp_definition'] == 'wall_clock_controller_latency'
+    assert abs(m['lat_cmd_motion_ms_mean'] - 300) < 1e-6
+    assert abs(m['lat_stop_ms_p95'] - 200) < 1e-6
+    assert abs(m['lat_cmd_motion_ms_mean_sim'] - 100) < 1e-6
+    assert 'wall-clock stamps missing' not in m['notes']
+    r.responsiveness_events['wall_latency_s'] = np.array([0.7, 0.2])   # > 0.5 s deadline
+    assert compute_responsiveness_metrics(r)['resp_cmd_pct'] == 0.0
+
+
+def test_wall_clock_fallback_note():
+    m = compute_responsiveness_metrics(step_run([('cmd_motion', 10.0, 10.3)]))
+    assert abs(m['lat_cmd_motion_ms_mean'] - 300) < 1e-6
+    assert abs(m['lat_cmd_motion_ms_mean_sim'] - 300) < 1e-6
+    assert 'wall-clock stamps missing' in m['notes']
+    assert m['resp_definition'] == 'wall_clock_controller_latency'

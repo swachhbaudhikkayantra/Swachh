@@ -50,7 +50,7 @@
         <collision name="col"><geometry><plane><normal>0 0 1</normal><size>30 30</size></plane></geometry></collision>
         <visual name="vis">
           <geometry><plane><normal>0 0 1</normal><size>30 30</size></plane></geometry>
-          <material><ambient>0.6 0.6 0.6 1</ambient><diffuse>0.6 0.6 0.6 1</diffuse></material>
+          <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse><pbr><metal><albedo_map>textures/floor_3.png</albedo_map><roughness>1.0</roughness><metalness>0.0</metalness></metal></pbr></material>
         </visual>
       </link>
     </model>
@@ -60,7 +60,7 @@
       <link name="link">
         <collision name="col"><geometry><box><size>8.6 0.2 3</size></box></geometry></collision>
         <visual name="vis"><geometry><box><size>8.6 0.2 3</size></box></geometry>
-          <material><ambient>0.85 0.85 0.82 1</ambient><diffuse>0.85 0.85 0.82 1</diffuse></material></visual>
+          <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse><pbr><metal><albedo_map>textures/wall_07.png</albedo_map><roughness>1.0</roughness><metalness>0.0</metalness></metal></pbr></material></visual>
       </link>
     </model>
     <model name="wall_south">
@@ -68,7 +68,7 @@
       <link name="link">
         <collision name="col"><geometry><box><size>8.6 0.2 3</size></box></geometry></collision>
         <visual name="vis"><geometry><box><size>8.6 0.2 3</size></box></geometry>
-          <material><ambient>0.85 0.85 0.82 1</ambient><diffuse>0.85 0.85 0.82 1</diffuse></material></visual>
+          <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse><pbr><metal><albedo_map>textures/wall_12.png</albedo_map><roughness>1.0</roughness><metalness>0.0</metalness></metal></pbr></material></visual>
       </link>
     </model>
     <model name="wall_west">
@@ -76,7 +76,7 @@
       <link name="link">
         <collision name="col"><geometry><box><size>0.2 4 3</size></box></geometry></collision>
         <visual name="vis"><geometry><box><size>0.2 4 3</size></box></geometry>
-          <material><ambient>0.85 0.85 0.82 1</ambient><diffuse>0.85 0.85 0.82 1</diffuse></material></visual>
+          <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse><pbr><metal><albedo_map>textures/wall_01.png</albedo_map><roughness>1.0</roughness><metalness>0.0</metalness></metal></pbr></material></visual>
       </link>
     </model>
     <model name="wall_east">
@@ -84,7 +84,7 @@
       <link name="link">
         <collision name="col"><geometry><box><size>0.2 4 3</size></box></geometry></collision>
         <visual name="vis"><geometry><box><size>0.2 4 3</size></box></geometry>
-          <material><ambient>0.85 0.85 0.82 1</ambient><diffuse>0.85 0.85 0.82 1</diffuse></material></visual>
+          <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse><pbr><metal><albedo_map>textures/wall_10.png</albedo_map><roughness>1.0</roughness><metalness>0.0</metalness></metal></pbr></material></visual>
       </link>
     </model>
     <model name="wall_mid_n">
@@ -92,7 +92,7 @@
       <link name="link">
         <collision name="col"><geometry><box><size>0.2 1.55 3</size></box></geometry></collision>
         <visual name="vis"><geometry><box><size>0.2 1.55 3</size></box></geometry>
-          <material><ambient>0.85 0.85 0.82 1</ambient><diffuse>0.85 0.85 0.82 1</diffuse></material></visual>
+          <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse><pbr><metal><albedo_map>textures/wall_11.png</albedo_map><roughness>1.0</roughness><metalness>0.0</metalness></metal></pbr></material></visual>
       </link>
     </model>
     <model name="wall_mid_s">
@@ -100,7 +100,7 @@
       <link name="link">
         <collision name="col"><geometry><box><size>0.2 1.55 3</size></box></geometry></collision>
         <visual name="vis"><geometry><box><size>0.2 1.55 3</size></box></geometry>
-          <material><ambient>0.85 0.85 0.82 1</ambient><diffuse>0.85 0.85 0.82 1</diffuse></material></visual>
+          <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse><pbr><metal><albedo_map>textures/wall_12.png</albedo_map><roughness>1.0</roughness><metalness>0.0</metalness></metal></pbr></material></visual>
       </link>
     </model>
     <model name="table_a">

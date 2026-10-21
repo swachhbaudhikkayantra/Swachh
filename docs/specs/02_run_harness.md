@@ -186,3 +186,11 @@ See `12_acceptance_tests.md` T-02x. In short: a 3-minute smoke episode (timeout 
 | 2026-10-20 | Episode starts at first motion command, not at launch | SLAM/Nav2 bring-up varies run to run and is not part of the task |
 | 2026-10-20 | Timers for rates use sim time; resource/RTF use wall time | Sim-time rates are exact (30 Hz); RTF is by definition sim/wall |
 | 2026-10-20 | Metric math offline from raw files | Re-computable if a definition changes |
+
+## Update 2026-10-21: episode-level statistics (2.9 amendment)
+
+- Unit of analysis is the episode. Rows with `status` `invalid` or `failed` are excluded from statistics and reported as `n_invalid` / `n_failed`.
+- Pooled rate metrics (`nav_goals_succeeded`, `trial_success`, `lc_n_true`, `resp_n_met`) get `pooled_pct` plus a cluster (episode-level) bootstrap 95 % CI `cluster_ci_lo`/`cluster_ci_hi` (percentile, B=5000, rng seed in `boot_seed`, `--seed`). Wilson columns are renamed `wilson_naive_lo_pct`/`_hi_pct` and ignore clustering of goals within episodes.
+- Continuous metrics keep mean/std/t-CI and add percentile bootstrap `boot_ci_lo`/`boot_ci_hi` over episodes.
+- Method comparisons keep Wilcoxon / Mann-Whitney and add Holm-Bonferroni `p_holm` across all comparisons in the run.
+- `python3 -m vacuum_eval.plan_sample_size` gives episodes needed (design effect 1+(m-1)ICC; t-based for continuous; `--from-root RUNS --metric KEY` estimates p/sd/ICC) and a wall-time estimate (`--episode-wall-min`, default 45).

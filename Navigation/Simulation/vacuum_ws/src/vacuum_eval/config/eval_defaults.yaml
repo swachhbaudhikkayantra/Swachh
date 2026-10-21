@@ -1,7 +1,7 @@
 # All thresholds named in docs/specs/ live here (spec 00 section 0.5).
 grid_resolution_m: 0.05
 robot_body_z_lo: 0.03
-robot_body_z_hi: 0.25
+robot_body_z_hi: 0.30   # was 0.25: unified obstacle band top
 r_inscribed_m: 0.125
 grid_margin_m: 0.50
 swath_width_m: 0.25
@@ -11,12 +11,19 @@ deadline_cmd_motion_s: 0.5
 deadline_stop_s: 0.5
 deadline_goal_motion_s: 2.0
 deadline_obstacle_s: 1.0
-lc_pos_tol_m: 1.0
-lc_yaw_tol_deg: 60.0
+lc_pos_tol_m: 0.30   # was 1.0 (precision ~100% by construction in 6x5 m); old values reported as *_loose
+lc_yaw_tol_deg: 30.0
 lc_min_time_gap_s: 30.0
+lc_reg_trans_tol_m: 0.10   # closure correct if RTAB-Map transform matches GT relative transform
+lc_reg_rot_tol_deg: 5.0
 episode_timeout_sim_sec: 1200
 odom_noise:
   sigma_scale_lin: 0.02
   sigma_scale_ang: 0.03
   sigma_rw_per_sqrt_m: 0.02
   sigma_rw_per_sqrt_rad: 0.03
+validity:
+  camera_hz: 30.0
+  max_img_drop_pct: 10.0
+  max_rtabmap_gap_s: 5.0
+  min_rtabmap_update_frac: 0.5

@@ -29,6 +29,7 @@ setup(
             'goal_sender = vacuum_eval.goal_sender:main',
             'responsiveness_test = vacuum_eval.responsiveness_test:main',
             'dynamic_mover = vacuum_eval.dynamic_mover:main',
+            'gt_localization_node = vacuum_eval.gt_localization_node:main',
         ],
     },
 )

@@ -93,3 +93,7 @@ Inputs: `run.meta` (spawn), `run.maps_final`, `run.map_snapshots`, `run.episode_
 | 2026-10-20 | Cells are 0.05 m; centre-inclusion rasterisation | Matches RTAB-Map's typical cell size (verify) and keeps area error < 2 % on furniture |
 | 2026-10-20 | Denominator = connected free area from the spawn, not the whole room | Unreachable pockets (enclosed by furniture) must not penalise any method |
 | 2026-10-20 | Fixed alignment is primary, searched alignment is diagnostic | The map frame is defined by the start pose; a search could hide a real SLAM frame error |
+
+## Decision 2026-10-21
+- Headline `coverage_explored_pct`, `coverage_cleaned_pct`, `missed_area_m2`, `missed_explored_m2` and `cleaning_efficiency` use the REACHABLE area: a_clean cells within r_inscribed (0.125 m) of `a_reach` (else `navigable`). Old a_clean-based values are kept as `*_aclean_*` keys (`coverage_explored_aclean_pct`, `coverage_cleaned_aclean_pct`, `missed_area_aclean_m2`, `missed_explored_aclean_m2`, `cleaning_efficiency_aclean`).
+- `map_completeness_pct` stays UNALIGNED (fixed spawn transform). The aligned value is `map_completeness_aligned_diag_pct`: a diagnostic only, optimised over the scored map, hence optimistic. `map_completeness_aligned_pct` remains as a deprecated alias for one release.

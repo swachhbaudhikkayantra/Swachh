@@ -47,6 +47,7 @@ from typing import Deque, List, Optional, Set
 import numpy as np
 from scipy import ndimage
 import rclpy
+import rclpy.time
 from rclpy.action import ActionClient
 from rclpy.node import Node
 from rclpy.qos import QoSProfile, QoSReliabilityPolicy, QoSDurabilityPolicy
@@ -58,8 +59,40 @@ from nav2_msgs.action import NavigateToPose
 from std_msgs.msg import Bool, String
 from visualization_msgs.msg import Marker, MarkerArray
 
+from tf2_ros import Buffer, TransformListener
+
 from vacuum_exploration.frontier_detector import Frontier
 from vacuum_exploration.goal_selector import GoalSelector
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Pure decision helpers (no ROS; unit-tested in test_goal_selection_guard.py)
+# ─────────────────────────────────────────────────────────────────────────────
+
+def goal_too_close_to_robot(goal_xy, robot_xy, min_goal_distance: float) -> bool:
+    """True if the snapped goal is within min_goal_distance of the robot (same frame)."""
+    if robot_xy is None:
+        return False
+    return math.hypot(goal_xy[0] - robot_xy[0], goal_xy[1] - robot_xy[1]) < min_goal_distance
+
+
+def frontier_length_m(size_cells: int, resolution: float) -> float:
+    """Frontier length in metres = cells * map resolution."""
+    return size_cells * resolution
+
+
+def frontier_big_enough(size_cells: int, resolution: float, min_size_m: float) -> bool:
+    return frontier_length_m(size_cells, resolution) >= min_size_m
+
+
+def no_information_gain(reached_xy, frontier_xys, blacklist_radius: float,
+                        free_at_send: int, free_now: int, growth_threshold: int) -> bool:
+    """After a SUCCEEDED goal: True if a frontier near the reached one is still present
+    and the map grew by fewer than growth_threshold free cells since the goal was sent."""
+    still_there = any(
+        math.hypot(fx - reached_xy[0], fy - reached_xy[1]) <= blacklist_radius
+        for fx, fy in frontier_xys)
+    return still_there and (free_now - free_at_send) < growth_threshold
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -131,6 +164,9 @@ class ExplorationManager(Node):
         self.declare_parameter('weight_distance',                1.5)
         self.declare_parameter('weight_obstacle_penalty',        0.8)
         self.declare_parameter('min_goal_distance',              0.30)
+        # Manager-side minimum frontier length in METRES (= detector cells * map resolution).
+        # The detector's own min_frontier_size is in cells; this one is resolution-independent.
+        self.declare_parameter('min_frontier_size_m',            0.5)
 
         p = lambda name: self.get_parameter(name).value
         self._goal_timeout             = p('goal_timeout')
@@ -148,7 +184,16 @@ class ExplorationManager(Node):
         self._bootstrap_wait           = p('bootstrap_wait_sec')
         self._bootstrap_spin           = p('bootstrap_spin_sec')
         self._bootstrap_wz             = p('bootstrap_spin_wz')
+        self._min_goal_distance        = p('min_goal_distance')
+        self._min_frontier_size_m      = p('min_frontier_size_m')
         self._wait_map_since: Optional[float] = None
+        self._frontiers_skipped = 0
+        self._frontier_msgs = 0                  # detection cycles received
+        self._pending_gain_check = None          # (x, y, free_at_send, msg_count_at_success)
+        self._free_at_send = 0
+        self._tf_warned = False
+        self._tf_buffer = Buffer()
+        self._tf_listener = TransformListener(self._tf_buffer, self)
 
         # ── Goal Selector ─────────────────────────────────────────────────────
         self._selector = GoalSelector(
@@ -251,9 +296,14 @@ class ExplorationManager(Node):
     def _frontiers_callback(self, msg: PoseArray) -> None:
         """Reconstruct Frontier list from PoseArray published by FrontierDetector."""
         frontiers = []
+        self._frontier_msgs += 1
+        res = self._latest_map.info.resolution if self._latest_map is not None else None
         for i, pose in enumerate(msg.poses):
+            if res is not None and not frontier_big_enough(
+                    max(1, int(pose.position.z)), res, self._min_frontier_size_m):
+                continue
             frontiers.append(Frontier(
-                id=i,
+                id=len(frontiers),
                 centroid_x=pose.position.x,
                 centroid_y=pose.position.y,
                 size=max(1, int(pose.position.z)),  # size encoded in z
@@ -281,6 +331,23 @@ class ExplorationManager(Node):
 
         self._last_robot_x = rx
         self._last_robot_y = ry
+
+    def _robot_xy_map(self):
+        """Robot (x, y) in the map frame via TF map->base_footprint.
+
+        /odom is in the odom frame, which drifts relative to map once SLAM corrects it, so
+        it must not be compared with map-frame goals. Falls back to odom if TF is missing.
+        """
+        try:
+            t = self._tf_buffer.lookup_transform('map', 'base_footprint', rclpy.time.Time())
+            return (t.transform.translation.x, t.transform.translation.y)
+        except Exception:
+            if not self._tf_warned:
+                self._tf_warned = True
+                self.get_logger().warning('TF map->base_footprint unavailable; using odom pose.')
+            if self._last_robot_x is None:
+                return None
+            return (self._last_robot_x, self._last_robot_y)
 
     # ── FSM tick ───────────────────────────────────────────────────────────────
 
@@ -312,6 +379,7 @@ class ExplorationManager(Node):
                         self.get_logger().info('No map yet - turning in place to start SLAM.')
 
         elif self._state == ExplorationState.DETECT_FRONTIERS:
+            self._check_no_gain(current_time)
             if self._frontiers:
                 self._no_frontier_count = 0
                 self._state = ExplorationState.SELECT_GOAL
@@ -325,8 +393,8 @@ class ExplorationManager(Node):
                     self._state = ExplorationState.FINISHED
 
         elif self._state == ExplorationState.SELECT_GOAL:
-            robot_x = self._last_robot_x or 0.0
-            robot_y = self._last_robot_y or 0.0
+            rxy = self._robot_xy_map() or (0.0, 0.0)
+            robot_x, robot_y = rxy
             chosen = self._selector.select_best(
                 frontiers=self._frontiers,
                 robot_x=robot_x,
@@ -362,7 +430,18 @@ class ExplorationManager(Node):
                 self._current_frontier = None
                 self._state = ExplorationState.DETECT_FRONTIERS
                 return
+            if goal_too_close_to_robot(snapped, self._robot_xy_map(), self._min_goal_distance):
+                self.get_logger().warning(
+                    f'Snapped goal ({snapped[0]:.2f}, {snapped[1]:.2f}) for frontier '
+                    f'#{self._current_frontier.id} is within {self._min_goal_distance:.2f} m '
+                    'of the robot; not sending.')
+                self._blacklist_frontier(self._current_frontier, current_time, 'goal_at_robot')
+                self._frontiers_skipped += 1
+                self._current_frontier = None
+                self._state = ExplorationState.DETECT_FRONTIERS
+                return
             self._goal_xy = snapped
+            self._free_at_send = self._map_free
             self._send_nav_goal(self._current_frontier)
             self._goal_start_time = current_time
             self._last_move_time  = current_time
@@ -376,6 +455,9 @@ class ExplorationManager(Node):
             if self._goal_result is not None:
                 if self._goal_result == GoalStatus.STATUS_SUCCEEDED:
                     self._emit_goal_event('ended', current_time, 'succeeded')
+                    f = self._current_frontier
+                    self._pending_gain_check = (
+                        f.centroid_x, f.centroid_y, self._free_at_send, self._frontier_msgs)
                     self._state = ExplorationState.GOAL_REACHED
                 else:
                     self._emit_goal_event(
@@ -469,6 +551,22 @@ class ExplorationManager(Node):
                 f'map_stable={cond2} stationary={cond3}')
             return True
         return False
+
+    def _check_no_gain(self, current_time: float) -> None:
+        """Blacklist a reached frontier that persists without map growth (2 cycles max)."""
+        pg = self._pending_gain_check
+        if pg is None or self._frontier_msgs <= pg[3]:
+            return
+        x, y, free0, n0 = pg
+        if no_information_gain((x, y), [(f.centroid_x, f.centroid_y) for f in self._frontiers],
+                               self._blacklist_radius, free0, self._map_free,
+                               self._map_growth_threshold):
+            self._blacklist_frontier(Frontier(id=-1, centroid_x=x, centroid_y=y, size=1),
+                                     current_time, 'no_information_gain')
+            self._frontiers_skipped += 1
+            self._pending_gain_check = None
+        elif self._frontier_msgs >= n0 + 2:
+            self._pending_gain_check = None
 
     def _map_has_free_cells(self) -> bool:
         return self._latest_map is not None and self._map_free > 0
@@ -676,6 +774,7 @@ class ExplorationManager(Node):
             'goals_failed':        self._goals_failed,
             'frontiers_remaining': len(self._frontiers),
             'blacklisted_count':   len(self._blacklist),
+            'frontiers_skipped':   self._frontiers_skipped,
             'elapsed_sec':         round(current_time - self._session_start, 1),
         }
         msg = String()

@@ -115,8 +115,13 @@ Code lives in `Navigation/Simulation/vacuum_ws/src/vacuum_eval/` (+ edits listed
 Physics step 1 ms → 4 ms (all worlds); `/camera/depth/points` removed from the default bridge; `headless:=true` = gz server without GUI (`-r -s`); `--headless-rendering` segfaults on this WSL (no EGL GPU). Real-time factor with the full stack: 0.25 → ~0.45 (headless). A 20-min-sim episode still takes roughly 45 min wall; budget accordingly.
 
 ### Open problems
-- **Contact sensors**: SDF and bridge are correct (`<topic>` is inside `<contact>`), Gazebo lists the topics but never creates publishers, so `collision_source` is always `geometry`. Unresolved.
+- ~~Contact sensors~~ **Resolved 2026-10-21**: Gazebo only creates contact publishers for models present when the world loads (verified with a minimal SDF model spawned at runtime vs in the world file). `sim.launch.py` now bakes the robot into the world at launch (`embed_robot:=true`, default); `collision_source` is `contact` and the first live run recorded real contacts with `coffee_table`. Note one contact generates ~1000 raw rows (many contact points per message); `collision_events` debounces them.
 - **Nav2 success is low** (apartment: ~10–40 % of goals; many "no valid path"/"Start occupied"); needs costmap/planner tuning, which is a method result not a measurement bug.
 - **AMCL error** ~0.6 m mean on the GT map (camera-derived scan), so Nav2 "succeeds" at goals the robot is not at (`nav_success_gt_pct` 0 % in the first scripted run).
 - **Robot model**: wheel axle is 8 cm behind `base_footprint` but the controller assumes they coincide; in-place rotation under-reports yaw by ~5 %.
 - RTAB-Map with external odometry does not correct drift without loop closures (SLAM ATE == odometry ATE in the noisy smoke run).
+
+
+### Update 2026-10-21 (tuning pass after web research)
+Applied: rug collision removed (visual only); Nav2 footprint = 0.30 x 0.25 m polygon (was radius 0.18 -> 0.16 -> polygon), inflation 0.28 / scaling 5; `cmd_vel_timeout` 0.5 -> 1.5 s; `wheel_separation_multiplier` 0.945 (odom yaw was 0.945 x true); brick/floor textures (512 px, `worlds/textures/`, PBR albedo) on wall_* and ground_plane for loop-closure features; contact sensors working (see above); `vacuum_eval.diagnose` tool added. Planner left as SmacPlannerHybrid on the user's instruction.
+Same-seed apartment episode, 150 s sim, noise off: Nav2 goal success 14 % -> 62.5 % (ground-truth success 25 %), idle 42 % -> 27 %. Not yet verified: whether the yaw calibration and textures changed loop closures (still 0 accepted), RTF stayed ~0.35.

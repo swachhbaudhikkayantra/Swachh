@@ -161,3 +161,34 @@ def test_T057_goal_list_determinism():
     for g in a['near_wall']:
         i, j = gt.world_to_cell(g['x'], g['y'])
         assert 0.20 - 1e-6 <= gt.dist_to_obstacle[j, i] <= 0.35 + 1e-6
+
+
+def _run_goals(results, t_end_ep=200.0, ends=None, traj=None):
+    rows = []
+    for k, res in enumerate(results):
+        te = (ends[k] if ends else 10.0 * k + 5.0)
+        rows.append(('scripted', k, 'started', '', 10.0 * k, 1.0, 1.0, ''))
+        rows.append(('scripted', k, 'ended', res, te, np.nan, np.nan, ''))
+    return Run(meta={'method': 'scripted_goals', 't_world_map': [0, 0, 0]},
+               goal_events=goal_events(rows), episode_start_t=0.0, episode_end_t=t_end_ep,
+               trajectory=traj)
+
+
+def test_canceled_is_failure_and_truncated_excluded():
+    run = _run_goals(['succeeded', 'canceled', 'canceled'], ends=[5.0, 15.0, 199.5])
+    m = compute_navigation_metrics(run, make_gt(corridor()))
+    assert m['nav_goals_total'] == 2 and m['nav_fail_canceled'] == 1
+    assert m['nav_goals_truncated'] == 1
+    assert m['nav_success_pct'] == 50.0
+
+
+def test_gt_success_tolerances_and_row_dt():
+    n = 60
+    t = 0.2 * np.arange(n)           # 0.2 s rows, not 0.1
+    x = np.full(n, 1.0 + 0.2)        # 0.2 m from goal (1, 1)
+    z = np.zeros(n)
+    traj = {'t': t, 'gt_x': x, 'gt_y': np.full(n, 1.0), 'gt_yaw': z, 'gt_vx': z, 'gt_wz': z}
+    m = compute_navigation_metrics(_run_goals(['succeeded'], t_end_ep=20.0, ends=[5.0], traj=traj),
+                                   make_gt(corridor()))
+    assert m['nav_success_gt_pct'] == 100.0 and m['nav_success_gt_strict_pct'] == 0.0
+    assert abs(m['time_stationary_s'] - 0.2 * n) < 1e-6

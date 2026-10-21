@@ -53,6 +53,9 @@ exploration_manager:
     # Prevents the robot from getting stuck indefinitely on a bad frontier.
     goal_timeout: 30.0            # s
 
+    # Snapped goals closer than this to the robot (map frame) are not sent (goal_at_robot).
+    min_goal_distance: 0.30       # m
+
     # ── Retry and recovery ────────────────────────────────────────────────────
     # Maximum retries per frontier before blacklisting it permanently (until expiry).
     retry_count: 3
@@ -83,6 +86,12 @@ exploration_manager:
     # cancel the current goal and choose a different frontier.
     oscillation_distance: 0.30    # m
     oscillation_timeout_sec: 15.0 # s
+
+    # ── Frontier size filter (manager side) ──────────────────────────────────
+    # Ignore frontiers shorter than this. Unit: metres of frontier length
+    # (= detector cluster cells * map resolution). Complements the detector's
+    # min_frontier_size, which is in cells.
+    min_frontier_size_m: 0.5
 
 metrics:
   ros__parameters:

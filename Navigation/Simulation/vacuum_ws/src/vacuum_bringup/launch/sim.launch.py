@@ -41,8 +41,11 @@ import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import (
+    AppendEnvironmentVariable,
     DeclareLaunchArgument,
+    LogInfo,
     IncludeLaunchDescription,
+    OpaqueFunction,
     TimerAction,
 )
 from launch.conditions import IfCondition
@@ -119,6 +122,12 @@ def generate_launch_description():
     declare_world_file = DeclareLaunchArgument(
         'world_file', default_value=dynamic_world_default,
         description='Absolute path to the Gazebo .sdf world file (overrides world:=)')
+    declare_embed_robot = DeclareLaunchArgument(
+        'embed_robot', default_value='true',
+        description='true = put the robot in the world file at load (contact sensors work); false = spawn at runtime')
+    declare_gz_verbose = DeclareLaunchArgument(
+        'gz_verbose', default_value='',
+        description="extra gz flag, e.g. '-v 4' to log sensor/system creation")
     declare_headless = DeclareLaunchArgument(
         'headless', default_value='false',
         description='true = gz server only: -r -s (no GUI)')
@@ -181,17 +190,64 @@ def generate_launch_description():
     # ── 2. Gazebo Harmonic ─────────────────────────────────────────
     # gz_ros2_control plugin starts automatically when Gazebo loads the URDF.
     # -r flag = run immediately (no pause on startup).
-    gazebo = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            os.path.join(pkg_ros_gz_sim, 'launch', 'gz_sim.launch.py')
-        ),
-        launch_arguments={
-            'gz_args': PythonExpression([
-                "('-r -s ' if '", LaunchConfiguration('headless'),
-                "'.lower() == 'true' else '-r ') + '", world_file, "'"]),
-            'on_exit_shutdown': 'true',
-        }.items(),
-    )
+    # Wall/floor textures (relative albedo_map paths in the world files) are found via
+    # the worlds directory on GZ_SIM_RESOURCE_PATH.
+    texture_path = AppendEnvironmentVariable(
+        'GZ_SIM_RESOURCE_PATH',
+        os.path.join(get_package_share_directory('vacuum_gazebo'), 'worlds'))
+
+    # The robot can be baked into the world file at launch ('embed_robot:=true', default).
+    # Reason: Gazebo's contact system only creates publishers for sensors on models that
+    # exist when the world loads; a robot spawned at runtime never publishes contacts
+    # (verified 2026-10-21 with a minimal SDF model). Embedding keeps everything else equal.
+    def _launch_gazebo(context):
+        import subprocess
+        import tempfile
+        import xml.etree.ElementTree as ET
+        world_path = world_file.perform(context)
+        gz_args_world = world_path
+        embed = LaunchConfiguration('embed_robot').perform(context).lower() == 'true'
+        if embed:
+            # unique per-launch dir: no stale files, parallel launches are safe
+            out_dir = tempfile.mkdtemp(prefix='vacuum_world_')
+            urdf = subprocess.check_output(['xacro', urdf_file], text=True)
+            urdf_path = os.path.join(out_dir, 'vacuum_robot.urdf')
+            with open(urdf_path, 'w') as f:
+                f.write(urdf)
+            sdf_txt = subprocess.check_output(['gz', 'sdf', '-p', urdf_path], text=True)
+            robot = ET.fromstring(sdf_txt).find('.//model')
+            robot.set('name', 'vacuum_robot')
+            for old_pose in robot.findall('pose'):
+                robot.remove(old_pose)
+            pose = ET.Element('pose')
+            pose.text = '%s %s 0 0 0 %s' % (
+                spawn_x.perform(context), spawn_y.perform(context), spawn_yaw.perform(context))
+            robot.insert(0, pose)
+            tree = ET.parse(world_path)
+            tree.getroot().find('world').append(robot)
+            # the baked world lives in /tmp: make relative texture paths absolute
+            for tag in ('albedo_map', 'normal_map', 'roughness_map', 'metalness_map'):
+                for el in tree.getroot().iter(tag):
+                    if el.text and not os.path.isabs(el.text.strip()):
+                        el.text = os.path.join(os.path.dirname(world_path), el.text.strip())
+            gz_args_world = os.path.join(
+                out_dir, os.path.splitext(os.path.basename(world_path))[0] + '_with_robot.sdf')
+            tree.write(gz_args_world)
+            log_msg = LogInfo(msg='Baked world written to ' + gz_args_world)
+        headless_on = LaunchConfiguration('headless').perform(context).lower() == 'true'
+        gz_args = ('-r -s ' if headless_on else '-r ') + \
+            LaunchConfiguration('gz_verbose').perform(context) + ' ' + gz_args_world
+        actions = [IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                os.path.join(pkg_ros_gz_sim, 'launch', 'gz_sim.launch.py')),
+            launch_arguments={'gz_args': gz_args, 'on_exit_shutdown': 'true'}.items())]
+        if embed:
+            actions.insert(0, log_msg)
+        return actions
+
+    # rsp must be up before gz_ros2_control loads (it reads /robot_description), so when the
+    # robot is embedded Gazebo starts a few seconds later.
+    gazebo = TimerAction(period=3.0, actions=[OpaqueFunction(function=_launch_gazebo)])
 
     # ── 3. ROS-Gazebo Bridge (/clock only) ─────────────────────────
     # Stage 2: ros2_control publishes /odom, /tf, /joint_states natively.
@@ -234,6 +290,8 @@ def generate_launch_description():
                     '-Y',     spawn_yaw,
                 ],
                 output='screen',
+                condition=IfCondition(PythonExpression(
+                    ["'", LaunchConfiguration('embed_robot'), "'.lower() != 'true'"])),
             )
         ],
     )
@@ -281,6 +339,8 @@ def generate_launch_description():
         declare_world,
         declare_world_file,
         declare_headless,
+        declare_gz_verbose,
+        declare_embed_robot,
         declare_spawn_x,
         declare_spawn_y,
         declare_spawn_yaw,
@@ -292,6 +352,7 @@ def generate_launch_description():
         declare_extra_bridge,
 
         # Launch in dependency order
+        texture_path,
         robot_state_publisher,  # must be before spawn (provides /robot_description)
         gazebo,
         extra_bridge,

@@ -74,3 +74,7 @@ revisit_episodes(nodes, pos_tol, yaw_tol, min_gap_s) -> list[set[ref_id]]
 |---|---|---|
 | 2026-10-20 | Ground-truth poses at node creation decide correctness | RTAB-Map's own post-hoc optimised poses are what is being evaluated |
 | 2026-10-20 | Headline = recall, precision always reported | User's wording "success rate"; precision exposes false positives that corrupt maps |
+
+| 2026-10-21 | Truth tolerances tightened to 0.30 m / 30 deg (was 1.0 m / 60 deg) | Loose values make precision ~100% by construction in a 6x5 m flat; old tolerances still reported as `lc_n_true_loose`, `lc_n_false_loose`, `lc_precision_loose_pct` |
+
+| 2026-10-21 | Correctness redefined: accepted closure is TRUE if RTAB-Map's `loop_closure_transform` (recorded as `lc_tx, lc_ty, lc_tyaw`, appended to `loop_events.csv`) matches the GT relative SE(2) transform inv(P_ref)*P_loop within `lc_reg_trans_tol_m` = 0.10 m and `lc_reg_rot_tol_deg` = 5 deg | A correct visual closure can link views ~1 m apart; what matters is registration accuracy. Convention: RTAB-Map Link ref->loop, pose_loop = pose_ref * T (ref = current node, loop = matched older node); not verified against live data. Old runs without the columns fall back to position tolerance (note emitted). Position results kept as `lc_precision_samepose_pct` (0.30 m/30 deg) and `lc_precision_loose_pct` (1.0 m/60 deg). Recall: revisits stay position-based (GT within 1.0 m/60 deg of a node >= `lc_min_time_gap_s` older), i.e. places where a closure was possible, independent of registration accuracy |

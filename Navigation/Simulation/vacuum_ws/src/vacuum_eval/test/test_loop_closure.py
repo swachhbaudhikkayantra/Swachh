@@ -63,3 +63,66 @@ def test_helpers_and_proximity():
     m = compute_loop_closure_metrics(r)
     assert m['n_proximity_links'] == 1 and m['lc_n_accepted'] == 1   # duplicate pair counted once
     assert m['lc_n_info_msgs'] == 12
+
+
+def test_tight_vs_loose_tolerance():
+    # node 10 is 0.5 m from node 1: true at old 1.0 m tolerance, false at 0.30 m
+    rows = circle_rows({10: 1})
+    a = list(rows[-1])
+    a[4] = 3.0 + 0.5
+    rows[-1] = tuple(a)
+    m = compute_loop_closure_metrics(make(rows))
+    assert m['lc_n_true'] == 0 and m['lc_n_false'] == 1 and m['lc_precision_pct'] == 0.0
+    assert m['lc_n_true_loose'] == 1 and m['lc_precision_loose_pct'] == 100.0
+
+
+def test_yaw_tolerance_default():
+    rows = circle_rows({10: 1})
+    a = list(rows[-1])
+    a[6] = math.pi / 2 - math.radians(45)  # node 1 yaw is pi/2; 45 deg off
+    rows[-1] = tuple(a)
+    m = compute_loop_closure_metrics(make(rows))
+    assert m['lc_n_true'] == 0 and m['lc_n_true_loose'] == 1
+
+
+def _reg_run(tf, a=(0.0, 0.0, 0.0), b=(1.0, 1.0, math.pi / 2)):
+    """Ref node 2 (current, 40 s) at a closes to loop node 1 (old) at b; tf is ref->loop,
+    i.e. inv(Pa)*Pb. Default: Pa=(0,0,0) -> (1, 1, 90 deg)."""
+    rows = [(0, 1, 0, 0, b[0], b[1], b[2]), (40, 2, 1, 0, a[0], a[1], a[2])]
+    r = make(rows)
+    r.loop_events['lc_tx'] = np.array([np.nan, tf[0]])
+    r.loop_events['lc_ty'] = np.array([np.nan, tf[1]])
+    r.loop_events['lc_tyaw'] = np.array([np.nan, tf[2]])
+    return r
+
+
+def test_reg_correct_transform_far_apart_nodes():
+    # Nodes 1.41 m apart: old position test says false, but transform matches GT.
+    m = compute_loop_closure_metrics(_reg_run((1.0, 1.0, math.pi / 2)))
+    assert m['lc_n_true'] == 1 and m['lc_precision_pct'] == 100.0
+    assert m['lc_precision_samepose_pct'] == 0.0
+    assert m['lc_precision_loose_pct'] == 0.0   # 1.41 m > 1.0 m
+
+
+def test_reg_wrong_transform_same_place():
+    # Nodes at the same pose (GT rel = 0,0,0) but RTAB-Map says 0.5 m off -> false.
+    r = _reg_run((0.5, 0.0, 0.0), b=(0.0, 0.0, 0.0))
+    m = compute_loop_closure_metrics(r)
+    assert m['lc_n_true'] == 0 and m['lc_precision_pct'] == 0.0
+    assert m['lc_precision_samepose_pct'] == 100.0
+
+
+def test_reg_rotated_frame_and_rot_tol():
+    # Pa=(1,0,90deg), Pb=(1,2,90deg): rel = (2, 0, 0). Tx=2.05 ok; yaw error 6 deg fails.
+    a, b = (1.0, 0.0, math.pi / 2), (1.0, 2.0, math.pi / 2)
+    assert compute_loop_closure_metrics(_reg_run((2.05, 0.0, 0.0), a, b))['lc_n_true'] == 1
+    assert compute_loop_closure_metrics(
+        _reg_run((2.0, 0.0, math.radians(6)), a, b))['lc_n_true'] == 0
+
+
+def test_reg_missing_columns_fallback():
+    r = _reg_run((0, 0, 0), b=(0.1, 0.0, 0.0))
+    for k in ('lc_tx', 'lc_ty', 'lc_tyaw'):
+        del r.loop_events[k]
+    m = compute_loop_closure_metrics(r)
+    assert m['lc_n_true'] == 1 and any('lack lc_tx' in n for n in m['notes'])

@@ -63,7 +63,7 @@ rtabmap:
     # ── Memory management ──────────────────────────────────────────────────
     # Short-term memory (STM) holds the most recent keyframes.
     # Older keyframes are moved to long-term memory (LTM) for loop closure.
-    Mem/STMSize:               "30"     # keyframes in short-term memory
+    Mem/STMSize:               "10"     # keyframes in short-term memory (30 hid most of a 50-node episode from loop detection)
     Mem/RehearsalSimilarity:   "0.45"   # similarity threshold for memory rehearsal
     Mem/BadSignaturesIgnored:  "false"  # keep poor-quality keyframes
     Mem/InitWMWithAllNodes:    "false"  # don't pre-load entire DB into working memory
@@ -105,17 +105,19 @@ rtabmap:
     Grid/3D:                   "false"  # false = 2D occupancy grid for Nav2
     Grid/RayTracing:           "true"   # mark free space using ray casting
     Grid/CellSize:             "0.05"   # m — 5cm resolution (standard for Nav2)
-    Grid/MaxObstacleHeight:    "2.0"    # m — ignore obstacles above this height
+    Grid/MaxObstacleHeight:    "0.30"   # m — was 2.0; band top = robot body band
     Grid/MinGroundHeight:      "-0.1"   # m — ignore points below ground
-    Grid/MaxGroundHeight:      "0.15"   # m — classify points below as ground
+    Grid/MaxGroundHeight:      "0.03"   # m — was 0.15; band bottom (floor is flat in sim, no noise margin needed)
     Grid/FlatObstacleDetected: "true"   # detect horizontal surfaces as obstacles
     Grid/NormalsSegmentation:  "false"  # disable normals-based floor detection
 
     # ── Visual odometry fallback ───────────────────────────────────────────
     # RTAB-Map can refine odometry using visual features.
     # We use wheel odometry as primary; visual is cross-check only.
-    Vis/MinInliers:            "15"     # min visual feature matches for a valid frame
+    Vis/MinInliers:            "10"     # min visual feature matches for a valid frame
     Vis/InlierDistance:        "0.1"    # m — max reprojection error for inliers
+    Vis/FeatureType:           "6"      # must equal Kp/DetectorStrategy (mismatch disabled Mem/UseOdomFeatures)
+    Reg/Force3DoF:             "true"   # planar robot: x, y, yaw only
 
     # ── ICP refinement (disabled — no lidar) ──────────────────────────────
     Icp/MaxTranslation:        "0.1"

@@ -1,0 +1,11 @@
+# FROZEN test campaign (wall-clock controller latency). Est: ~300 s sim ~ 11 min/episode.
+# 1 world x 3 seeds x 2 stacks = 6 episodes ~ 1.1 h.
+experiment: final_responsiveness
+split: test
+worlds: [office]
+methods: [responsiveness]
+stacks: [bare, loaded]
+seeds: [101, 102, 103]
+odom_noise: [0]
+timeout_sim_sec: 300
+headless: 1

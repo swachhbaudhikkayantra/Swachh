@@ -1,8 +1,22 @@
 # Evaluation world registry (docs/specs/09_worlds.md section 9.7).
 # <share> is resolved via the ament index (vacuum_gazebo share dir) at runtime.
 # Spawn candidates / goals are verified by test/test_worlds_yaml.py against the GT rasteriser.
+# Dev/test split (docs/specs/13_preregistration.md). Dev = tuning allowed; test = frozen, run only via
+# run_batch.py --split test --confirm-test-split. Reasoning: dev holds the simplest/most-familiar layouts
+# (apartment is the tuning world; empty/cluttered room are single-room baselines; avoid_head_on, avoid_cluster,
+# avoid_narrow_gap_wide, avoid_dynamic_cross are the easier or already-iterated avoidance scenarios). Test holds
+# the structurally hard layouts (loops, symmetry, dead ends, doors) and the hardest avoidance variants
+# (narrow gap, u-trap, dead end, sudden dynamic obstacle) so tuning cannot overfit them.
+# avoid_* worlds have no entry under `worlds:` (no spawn/goal lists), so their split lives here.
+splits:
+  dev: [apartment, empty_room, cluttered_room, avoid_head_on, avoid_cluster, avoid_narrow_gap_wide, avoid_dynamic_cross]
+  test: [office, corridor, two_rooms_door, multi_room_loop, maze_dead_ends, symmetric_hall, avoid_narrow_gap, avoid_u_trap, avoid_dead_end, avoid_dynamic_sudden]
+seeds:
+  dev: [1, 2, 3, 4, 5]
+  test: [101, 102, 103, 104, 105, 106, 107, 108, 109, 110]
 worlds:
   apartment:
+    split: dev
     sdf_file: <share>/vacuum_gazebo/worlds/apartment.sdf
     world_name_in_sdf: apartment_world
     timeout_sim_sec: 1200
@@ -27,6 +41,7 @@ worlds:
         - [0.5, -1.5, 0]
         - [2.5, -0.8, 3.1416]
   office:
+    split: test
     sdf_file: <share>/vacuum_gazebo/worlds/office.sdf
     world_name_in_sdf: office_world
     timeout_sim_sec: 1200
@@ -51,6 +66,7 @@ worlds:
         - [0, 0.8, 0]
         - [-3.2, 1.5, 0]
   corridor:
+    split: test
     sdf_file: <share>/vacuum_gazebo/worlds/corridor.sdf
     world_name_in_sdf: corridor_world
     timeout_sim_sec: 900
@@ -82,6 +98,7 @@ worlds:
         - [0, -0.3, 3.1416]
         - [-5, 0, 0]
   empty_room:
+    split: dev
     sdf_file: <share>/vacuum_gazebo/worlds/empty_room.sdf
     world_name_in_sdf: empty_room_world
     timeout_sim_sec: 900
@@ -112,6 +129,7 @@ worlds:
         - [2.5, -2.5, 0]
         - [2.5, 2.5, 0]
   cluttered_room:
+    split: dev
     sdf_file: <share>/vacuum_gazebo/worlds/cluttered_room.sdf
     world_name_in_sdf: cluttered_room_world
     timeout_sim_sec: 1500
@@ -143,6 +161,7 @@ worlds:
         - [2.25, -2.25, 0]
         - [2.25, 2.25, 0]
   two_rooms_door:
+    split: test
     sdf_file: <share>/vacuum_gazebo/worlds/two_rooms_door.sdf
     world_name_in_sdf: two_rooms_door_world
     timeout_sim_sec: 1200
@@ -171,6 +190,7 @@ worlds:
         - [2, 0, 0]
         - [-2, 0, 3.1416]
   multi_room_loop:
+    split: test
     sdf_file: <share>/vacuum_gazebo/worlds/multi_room_loop.sdf
     world_name_in_sdf: multi_room_loop_world
     timeout_sim_sec: 1800
@@ -200,6 +220,7 @@ worlds:
         - [1.85, -1.85, 1.5708]
         - [1.85, 1.85, 3.1416]
   maze_dead_ends:
+    split: test
     sdf_file: <share>/vacuum_gazebo/worlds/maze_dead_ends.sdf
     world_name_in_sdf: maze_dead_ends_world
     timeout_sim_sec: 1800
@@ -225,6 +246,7 @@ worlds:
         - [3.5, 2.4, 0]
         - [3.5, 0, 0]
   symmetric_hall:
+    split: test
     sdf_file: <share>/vacuum_gazebo/worlds/symmetric_hall.sdf
     world_name_in_sdf: symmetric_hall_world
     timeout_sim_sec: 1200

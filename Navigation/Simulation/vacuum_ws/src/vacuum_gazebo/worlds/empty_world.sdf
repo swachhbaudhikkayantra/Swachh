@@ -100,11 +100,7 @@
               <size>100 100</size>
             </plane>
           </geometry>
-          <material>
-            <ambient>0.8 0.8 0.8 1</ambient>
-            <diffuse>0.8 0.8 0.8 1</diffuse>
-            <specular>0.1 0.1 0.1 1</specular>
-          </material>
+          <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse><pbr><metal><albedo_map>textures/floor_1.png</albedo_map><roughness>1.0</roughness><metalness>0.0</metalness></metal></pbr></material>
           <cast_shadows>false</cast_shadows>
         </visual>
 

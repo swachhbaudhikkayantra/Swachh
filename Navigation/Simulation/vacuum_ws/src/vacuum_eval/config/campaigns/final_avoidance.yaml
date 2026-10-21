@@ -1,0 +1,11 @@
+# FROZEN test campaign. Est: avoidance trials are short (~300 s sim ~ 11 min/episode).
+# 4 scenarios x 10 trials (seeds) = 40 episodes ~ 7.5 h. Goal list defaults to 'scenario' for avoid_* worlds.
+experiment: final_avoidance
+split: test
+worlds: [avoid_narrow_gap, avoid_u_trap, avoid_dead_end, avoid_dynamic_sudden]
+methods: [scripted_goals]
+nav_maps: [gt]
+seeds: [101, 102, 103, 104, 105, 106, 107, 108, 109, 110]
+odom_noise: [0]
+timeout_sim_sec: 300
+headless: 1

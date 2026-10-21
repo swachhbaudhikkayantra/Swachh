@@ -40,3 +40,12 @@ def test_world_points_navigable(name):
         assert gt.a_clean[j, i], (name, kind, p, 'not in a_clean')
         assert gt.dist_to_obstacle[j, i] >= CLEARANCE, (name, kind, p, float(gt.dist_to_obstacle[j, i]))
         assert seed_gt.navigable[j, i] and seed_gt.a_reach[j, i], (name, kind, p, 'not navigable/reachable')
+
+
+def test_splits_disjoint_and_complete():
+    full = yaml.safe_load(open(YAML))
+    dev, test = set(full['splits']['dev']), set(full['splits']['test'])
+    assert not dev & test
+    for name, w in full['worlds'].items():
+        assert w['split'] == ('dev' if name in dev else 'test')
+    assert not set(full['seeds']['dev']) & set(full['seeds']['test'])

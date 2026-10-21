@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Council Verdict: 2026-10-21</title>
+<style>
+ :root {
+ --paper: #fafaf7;
+ --ink: #141413;
+ --ink-soft: #4b4b47;
+ --ink-mute: #8a8a83;
+ --rule: #e5e3dc;
+ --accent: #1e3a5f;
+ --accent-soft: #e8eef5;
+ --sans: "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+ --serif: "Iowan Old Style", "Iowan", ui-serif, Georgia, Cambria, "Times New Roman", serif;
+ --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+ }
+ * { box-sizing: border-box; }
+ html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink); }
+ body { font-family: var(--serif); font-size: 17px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+ .wrap { max-width: 780px; margin: 0 auto; padding: 64px 32px 96px; }
+
+ .eyebrow {
+ font-family: var(--sans);
+ font-size: 11px;
+ letter-spacing: 0.22em;
+ text-transform: uppercase;
+ color: var(--accent);
+ font-weight: 600;
+ margin: 0 0 16px;
+ }
+ h1.question {
+ font-family: var(--serif);
+ font-weight: 500;
+ font-size: 34px;
+ line-height: 1.25;
+ letter-spacing: -0.01em;
+ margin: 0 0 20px;
+ color: var(--ink);
+ }
+ .meta {
+ font-family: var(--sans);
+ font-size: 13px;
+ color: var(--ink-mute);
+ margin: 0 0 56px;
+ border-bottom: 1px solid var(--rule);
+ padding-bottom: 28px;
+ }
+
+ section.verdict {
+ background: var(--accent-soft);
+ border-left: 3px solid var(--accent);
+ padding: 36px 40px;
+ margin: 0 0 56px;
+ border-radius: 2px;
+ }
+ section.verdict h2 {
+ font-family: var(--sans);
+ font-size: 11px;
+ letter-spacing: 0.22em;
+ text-transform: uppercase;
+ color: var(--accent);
+ margin: 0 0 24px;
+ font-weight: 600;
+ }
+ section.verdict h3 {
+ font-family: var(--sans);
+ font-size: 14px;
+ font-weight: 600;
+ color: var(--ink);
+ margin: 28px 0 8px;
+ letter-spacing: 0;
+ }
+ section.verdict h3:first-of-type { margin-top: 0; }
+ section.verdict p, section.verdict ul { margin: 0 0 8px; }
+ section.verdict ul { padding-left: 20px; }
+ section.verdict li { margin-bottom: 6px; }
+ section.verdict .recommendation {
+ font-size: 19px;
+ line-height: 1.5;
+ margin-top: 4px;
+ }
+ section.verdict .one-thing {
+ font-family: var(--serif);
+ font-style: italic;
+ font-size: 18px;
+ border-top: 1px solid rgba(30, 58, 95, 0.2);
+ padding-top: 20px;
+ margin-top: 28px;
+ }
+
+ .round-label {
+ font-family: var(--sans);
+ font-size: 11px;
+ letter-spacing: 0.22em;
+ text-transform: uppercase;
+ color: var(--ink-mute);
+ font-weight: 600;
+ margin: 0 0 16px;
+ padding-top: 16px;
+ border-top: 1px solid var(--rule);
+ }
+
+ details {
+ border-bottom: 1px solid var(--rule);
+ padding: 20px 0;
+ }
+ details[open] { padding-bottom: 28px; }
+ summary {
+ cursor: pointer;
+ list-style: none;
+ font-family: var(--sans);
+ font-weight: 500;
+ font-size: 15px;
+ color: var(--ink);
+ display: flex;
+ align-items: baseline;
+ gap: 12px;
+ user-select: none;
+ }
+ summary::-webkit-details-marker { display: none; }
+ summary::before {
+ content: "+";
+ font-family: var(--mono);
+ color: var(--accent);
+ font-weight: 400;
+ font-size: 16px;
+ transition: transform 160ms ease;
+ display: inline-block;
+ width: 12px;
+ }
+ details[open] summary::before { content: "−"; }
+ .advisor-kind {
+ font-family: var(--sans);
+ font-size: 11px;
+ letter-spacing: 0.16em;
+ text-transform: uppercase;
+ color: var(--ink-mute);
+ margin-left: 4px;
+ }
+ details .body {
+ margin-top: 16px;
+ padding-left: 24px;
+ color: var(--ink-soft);
+ font-size: 16px;
+ line-height: 1.65;
+ }
+ details .body p { margin: 0 0 12px; }
+ details .body p:last-child { margin-bottom: 0; }
+
+ footer {
+ margin-top: 80px;
+ padding-top: 24px;
+ border-top: 1px solid var(--rule);
+ font-family: var(--sans);
+ font-size: 12px;
+ color: var(--ink-mute);
+ line-height: 1.6;
+ }
+ footer code {
+ font-family: var(--mono);
+ background: rgba(30, 58, 95, 0.08);
+ padding: 1px 6px;
+ border-radius: 3px;
+ color: var(--ink);
+ font-size: 11px;
+ }
+
+ @media (max-width: 640px) {
+ .wrap { padding: 40px 20px 64px; }
+ h1.question { font-size: 26px; }
+ section.verdict { padding: 28px 24px; }
+ }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+ <p class="eyebrow">Council Verdict</p>
+ <h1 class="question">Before running the evaluation campaign for a Q1 robotics paper, which upstream design decisions of this simulation evaluation system should be changed, dropped, or kept, and in what order?</h1>
+ <p class="meta">21 October 2026, 18:50 &nbsp;·&nbsp; 5 advisors · 5 peer reviewers</p>
+
+ <section class="verdict">
+ <h2>Synthesis</h2>
+
+ <h3>Where the council agrees</h3>
+ <ul><li>All five advisors: no campaign until image transport is fixed. Every SLAM-derived number so far (ATE, RPE, map completeness, loop closure) describes wheel odometry, so transport is the gate for everything else, and it must be proved with a received-vs-published check, not assumed.</li><li>All five: revert the 0.945 wheel_separation_multiplier and stop calibrating physics by fudge factor; treat odometry drift as something measured (Outsider: freeze physics and robot parameters before any metric work so results stay comparable).</li><li>Contrarian, First Principles, Outsider and Executor: the circular metrics must be dropped or redefined before running: responsiveness as defined, cleaning efficiency for an explorer, aligned map completeness as a headline, and ground-truth nav success at Nav2&#x27;s own tolerance. Fewer, defensible metrics beat 14 compromised ones.</li><li>All five: run a 2-3 episode pilot and inspect it before the campaign; single-episode improvement claims (14% -&gt; 62.5%, CI ~25-92%) are anecdotes and must not be reported.</li></ul>
+
+ <h3>Where the council clashes</h3>
+ <ul><li>Scope. The Expansionist wants to grow the paper (turn the failures into a benchmark contribution, open-source the harness, add a boustrophedon coverage planner now); the Contrarian, First Principles and Outsider want the smallest defensible claim with 6-8 metrics. A reasonable advisor could side with growth because a real coverage planner is the only way cleaning efficiency becomes meaningful, or with shrinking because nothing is trustworthy yet.</li><li>Fate of the circular metrics. Contrarian and First Principles say drop them; Executor and Outsider say redefine or relabel (responsiveness becomes controller latency; cleaning efficiency only once a coverage planner exists). Either is defensible: dropping is safest for review, relabeling keeps metrics the user explicitly asked for.</li><li>Campaign size. The Executor accepts 3 worlds x 10 seeds with Wilson or bootstrap intervals; First Principles says derive the episode count from a target confidence-interval width and probably cut to 2 worlds with held-out seeds. The first is simpler; the second is the only one that guarantees the intervals will be narrow enough to support claims.</li></ul>
+
+ <h3>Blind spots the council caught</h3>
+ <ul><li>Independent oracles for the metric code (four of five reviewers converged). The 87 tests re-encode the implementation; the council never proposed known-answer checks: synthetic trajectories with a hand-computed ATE, coverage and collision count, a replay of a real recorded bag, and ideally RTAB-Map on a public RGB-D dataset to validate the ATE pipeline.</li><li>Pre-registration and a development/evaluation split (four of five reviewers). Metric definitions, tolerances and exclusion rules must be frozen before campaign data exist, and Nav2/SLAM tuning must happen on development worlds and seeds, with the final campaign on held-out worlds and seeds. Otherwise every metric stays circular.</li><li>Per-episode validity telemetry and wall-time realism (three reviewers). Log image-drop counts, true RTF and a config hash per episode with explicit exclusion or rerun rules; check that seeds actually vary something meaningful; note that RTF and DDS drops interact, and that parallel subagents running on the same laptop compete for the CPU the simulator needs.</li></ul>
+
+ <h3>The recommendation</h3>
+ <p class="recommendation">Follow the Executor&#x27;s gated sequence, which all five reviewers rated strongest: fix and prove image transport, revert the physics fudge and freeze robot parameters, then freeze metric definitions, then pilot, then campaign. I am overruling the Expansionist&#x27;s call to add a coverage planner and a benchmark-release framing now; it is sound for later but expands scope before a single trustworthy episode exists. On the drop-vs-relabel clash I side with relabeling: keep responsiveness only as wall-clock controller latency and cleaning efficiency only as a secondary, explicitly labelled number until a coverage planner exists, because the user asked for these metrics and honest relabeling preserves them without circularity. Add the reviewers&#x27; two blind spots before the campaign: known-answer oracle tests, and pre-registration with held-out worlds and seeds.</p>
+
+ <p class="one-thing"><strong>Do first:</strong> Raise the kernel socket buffers and Cyclone&#x27;s minimum receive buffer, then run one 10-minute apartment episode and confirm that RTAB-Map&#x27;s processed-frame count keeps rising with the camera frame count for the whole episode.</p>
+ </section>
+
+ <p class="round-label">Round 1: Advisors</p>
+
+ <details>
+ <summary>The Contrarian <span class="advisor-kind">downside lens</span></summary>
+ <div class="body"><p>The fatal flaw is the order of work. The campaign is the last step, not the next one. A 60-episode run (3 worlds x 10 seeds x noise on/off) costs about 45 min per episode, roughly 45 hours of wall time, and it would be built on a pipeline the critic has already shown is broken.</p><p>1. Finding (a) invalidates the whole paper. If RTAB-Map silently stops receiving images mid-run and there have been 0 loop closures ever, then &quot;SLAM&quot; results are odometry results. ATE, RPE, map completeness and loop-closure success would all describe the wrong system. Fix the transport before anything else: raise net.core.rmem_max, set a CycloneDDS or FastDDS config, or cut the subscriber count to the camera. Then prove that loop closures occur on a looped world. If they can&#x27;t be made to occur, the SLAM metrics have to be dropped, not reported.</p><p>2. Don&#x27;t &quot;recalibrate&quot; physics again. The 0.945 multiplier made yaw worse, and slip is non-stationary. Revert it and report odometry drift as a measured quantity.</p><p>3. Several metrics are circular or fake, and should be dropped rather than patched: responsiveness (e), cleaning efficiency (h), aligned map completeness (d), navigation success with the system&#x27;s own 0.30 m tolerance (f). Fewer honest metrics beat 14 compromised ones.</p><p>4. 14% to 62.5% on single 8-goal episodes has a CI of about 25-92%; improvement claims need the full seed count or have to go.</p><p>5. &quot;Fast progress with parallel AI subagents&quot; is the trap. Subagent-written tests that re-encode the implementation are why 87 passing tests proved nothing. Before the campaign, run a 3-episode pilot and have a human check it against hand-computed ground truth.</p><p>The real question is whether this stack can support a Q1 claim at all, given that there is no cleaning planner and no baseline comparison.</p></div>
+ </details>
+
+ <details>
+ <summary>The First Principles Thinker <span class="advisor-kind">reframe lens</span></summary>
+ <div class="body"><p>You are asking &quot;which of the 14 metrics&#x27; upstream decisions do we fix, and in what order?&quot; The right question is &quot;what is the smallest claim this paper can make that survives review, and which pipeline layer must be trustworthy to support it?&quot;</p><p>1. Right now there is no SLAM result. RTAB-Map stops receiving images, so there have been 0 loop closures and ATE/RPE just measure odometry. Any metric that depends on the pose or the map (ATE, RPE, map completeness, loop-closure success, coverage) is meaningless until image transport is fixed. It comes first, ahead of any metric design.</p><p>2. Physics is non-stationary: odom/GT yaw went 0.947 to 1.06 after a calibration. Revert the wheel_separation_multiplier and treat slip as the thing being measured. Do not tune it.</p><p>3. The campaign is the wrong unit of work. 60 episodes at roughly 45 min each is about 45 hours, and every finding (a-j) invalidates it. Instead run one 10-minute pilot per fix and check one thing: does the SLAM trajectory differ from odometry? Only then spend days.</p><p>4. Several metrics cannot be defended as they stand and should be dropped or demoted: responsiveness, cleaning efficiency, method comparison, and the 15 extras. A Q1 reviewer rewards 6 defensible metrics over 14 circular ones. Keep coverage, navigation success, collisions, ATE/RPE, loop closure and map completeness, but only after the denominator is reachable area and the evaluation is not scored on the map it was fitted to.</p><p>5. Statistics is a design input, not a post-processing step. With 8 goals the CI is about 25-92%. Define the episode count and goals per episode from a target confidence-interval width, then work back to how many episodes you can afford. Probably cut to 2 worlds and use a held-out seed set.</p><p>Order: transport, physics, metric validity (reachable denominator, frozen alignment, independent tolerance), pilot, campaign.</p></div>
+ </details>
+
+ <details>
+ <summary>The Expansionist <span class="advisor-kind">upside lens</span></summary>
+ <div class="body"><p>You&#x27;re asking how to fix a campaign. The bigger move is to stop treating this as a metrics campaign and make it a reproducible simulation-benchmark contribution. The 60 episodes are the wrong unit of ambition.</p><p>1. The critic&#x27;s findings (a)-(j) are the paper&#x27;s most publishable result. &quot;A camera-only cleaning robot&#x27;s SLAM silently degrades to odometry under DDS image drops, and here is how to detect it&quot; is a novelty hook. Fix the transport (raise net.core.rmem_max, shared-memory or Zenoh RMW, or a single throttled/compressed topic for RTAB-Map), then publish a before/after ablation: 0 loop closures vs N, with ATE and RPE for each.</p><p>2. Release the evaluation harness (recorder, offline metrics, the 8 avoidance worlds) open source with a metric-validity section. Fix the circular items (d, e, f, h) and report them as &quot;metric pitfalls&quot;.</p><p>3. First run a 2-3 episode smoke test checking: images flow for the whole episode, the odom/GT yaw ratio is stable, the denominators are fixed, the height bands agree. Then run 10 seeds, with bootstrap CIs and Wilson intervals.</p><p>4. Use the hold on method comparison: add a simple boustrophedon coverage planner (a day of work for parallel subagents) to make cleaning efficiency real and set up the A*/B-A*/GA+NN comparison as paper two.</p><p>5. Run headless at a reduced sensor rate to get RTF closer to 1.0.</p><p>Order: transport, physics (drop 0.945), metric definitions and denominators, smoke test, campaign.</p></div>
+ </details>
+
+ <details>
+ <summary>The Outsider <span class="advisor-kind">fresh-eyes lens</span></summary>
+ <div class="body"><p>You may be asking the wrong question. The critic&#x27;s list says your instrument isn&#x27;t measuring what you think it is. Nothing is ready to run, so no campaign should start yet.</p><p>Fatal flaw: finding (a). Every &quot;SLAM&quot; result so far is odometry, with 0 loop closures ever. ATE, RPE, map completeness and loop-closure success are measuring the wrong system. Fix the transport first (socket buffer, fewer subscribers, downscale images) and add a check that fails the episode if image-topic rate drops.</p><p>Second flaw: the metrics grade your own homework. Nav success uses Nav2&#x27;s own 0.30 m tolerance; responsiveness is almost guaranteed by the controller ramp and timed at RTF 0.35; the aligned map score tries 1,859 shifts on the scored map; cleaning efficiency is reported for an explorer that isn&#x27;t a cleaner (~12% cleaned). Drop or redefine these.</p><p>Third: the physics changed under you (0.945 moved yaw from 0.947 to 1.06). Freeze physics and robot parameters before any metric work, or before/after results can&#x27;t be compared.</p><p>Statistics: 14% to 62.5% from single 8-goal episodes (CI 25-92%) is anecdote; 10 seeds per cell.</p><p>Also, 14 metrics is a wish list, not a paper. Cut to the 6-8 you can defend, say plainly that method comparison can&#x27;t be claimed, and define each metric in one sentence (&quot;% obstacle avoidance&quot; vs &quot;avoidance success&quot; is unreadable without definitions).</p><p>Order: transport, physics freeze, metric redefinition, 2-episode dry run, campaign.</p></div>
+ </details>
+
+ <details>
+ <summary>The Executor <span class="advisor-kind">Monday-morning lens</span></summary>
+ <div class="body"><p>Wrong question: the real question is whether the pipeline can produce a single trustworthy episode. Right now it can&#x27;t. Every SLAM result so far equals odometry, with 0 loop closures ever. Running 60 episodes (~45 hours wall) on that is the one fatal move.</p><p>Monday morning, in this order:</p><p>1. Fix image transport first (half a day, gates everything). Raise net.core.rmem_max and wmem_max to ~16 MB, set CycloneDDS or Fast DDS buffers, cut subscribers by relaying the RGB-D topic once. Run a 10-minute sim and log RTAB-Map&#x27;s received-image count against the published count. Do not continue until they match.</p><p>2. Revert wheel_separation_multiplier to 1.0 and stop calibrating. Slip is non-stationary, so treat odom drift as the thing SLAM must correct. A 5-minute spin-in-place test confirms yaw ~1.0.</p><p>3. Freeze metric definitions in one afternoon, with no new infrastructure: one obstacle height band everywhere; reachable coverage denominator; drop the aligned map variant or report it only as a labeled secondary number; a GT success tolerance stricter than Nav2&#x27;s; fix the three bugs (j); delete responsiveness or relabel it controller latency; report cleaning efficiency only once a coverage planner exists. Keep the frontier explorer for the explorer metrics.</p><p>4. Pilot 2 episodes on 1 world and look at the plots. Only then launch the campaign.</p><p>Statistics: 10 seeds x 3 worlds is acceptable with Wilson or bootstrap CIs; never claim 14% -&gt; 62.5% from one 8-goal episode. Run overnight in batches of 5 with the diagnosis tool after each batch.</p><p>Keep: contact sensors, GT plugin, harness, Smac planner. Parallel AI subagents should do step 3 (pure code); steps 1-2 need someone at the terminal.</p></div>
+ </details>
+
+ <p class="round-label">Round 2: Peer review</p>
+
+ <details>
+ <summary>Reviewer 1</summary>
+ <div class="body"><p>1. Strongest: C. Only response with concrete, verifiable gates (received vs published image count, 5-minute spin-in-place yaw test, ~16 MB buffers); names specific metric fixes; says what to keep; splits subagent vs terminal work; gives batch and diagnosis cadence.<br>2. Biggest blind spot: B. Treats the findings as a publishable contribution and adds new work (boustrophedon planner, open-source release, paper two) against the fast-progress constraint; never deals with tolerance/responsiveness circularity beyond relabeling; never questions 14-metric feasibility; its RTF 1.0 claim is unsupported on a no-GPU laptop.<br>3. All five missed: no pre-registration or dev/test split (freeze definitions and thresholds before campaign data, tune on dev seeds/worlds); no per-episode image-drop/RTF telemetry as a validity flag with exclusion or rerun rules; no sim-to-real or public-dataset check (e.g. run RTAB-Map on a standard RGB-D dataset to validate the ATE pipeline); no independent oracle tests with hand-computed synthetic trajectories; no GT-localisation ablation to separate SLAM error from Nav2 failures.</p></div>
+ </details>
+
+ <details>
+ <summary>Reviewer 2</summary>
+ <div class="body"><p>1. Strongest: C. Concrete verifiable gates, a clear order, a keep list, sensible subagent scoping, honours the Smac constraint.<br>2. Biggest blind spot: B. Expands scope with a coverage planner while the stack isn&#x27;t trustworthy; never says to drop broken metrics; reduced sensor rate risks changing the pipeline.<br>3. All five missed: test validity needs independent oracles (synthetic trajectories with known ATE, hand-computed coverage, a replayed bag); no pre-registration and tuning on the evaluation worlds is circular; no loop-closure sanity test in a world that guarantees revisits; raw bags allow re-scoring offline without re-simulating; RTF 0.35 may itself cause the image drops, so RTF and transport fixes interact; nobody puts finding (i) (controller starvation, consider_footprint=false) into the pre-campaign order; nobody addresses that parallel episodes are impossible on this laptop.</p></div>
+ </details>
+
+ <details>
+ <summary>Reviewer 3</summary>
+ <div class="body"><p>1. Strongest: C. Turns the order into verifiable gates and gives specific metric fixes plus a keep list and a sensible work split.<br>2. Biggest blind spot: B. Scope expansion while the user wants fast progress; ignores metric circularity and the CI problem; never asks whether the stack can support a Q1 claim; no plan for tests that re-encode the implementation.<br>3. All five missed: an independent oracle for the metric code (synthetic/hand-computed trajectories with known ATE, coverage and collision values); finding (i) and the fact that baked-in-robot collision detection depends on world edits; reproducibility of seeds at RTF 0.35 and how noise on/off are paired; what success means for failed or crashed episodes (censoring, retries, config-hash logging); re-running the same pilot after each fix to catch regressions.</p></div>
+ </details>
+
+ <details>
+ <summary>Reviewer 4</summary>
+ <div class="body"><p>1. Strongest: C. Concrete gates (image counts, spin-in-place test), clear keep list respecting the planner constraint, sensible subagent/human split, fixed and sized order.<br>2. Biggest blind spot: B. Treats the findings as novelty and a new benchmark paper; adds a planner and a new RMW against &#x27;fast progress&#x27;; never says metrics must be dropped; reduced sensor rate changes the system under test; ignores tests that re-encode the implementation.<br>3. All five missed: checking that fixes actually changed results (re-running tests against hand-computed ground truth); seed validity and pseudo-replication across only 3 worlds; wall-time feasibility of ~45 hours on WSL2 with checkpoint/resume and crash handling; pre-registering metric definitions and analysis; a held-out world for the final run to avoid tuning on the evaluation worlds; sim-to-real framing.</p></div>
+ </details>
+
+ <details>
+ <summary>Reviewer 5</summary>
+ <div class="body"><p>1. Strongest: C. Verifiable gates, named fixes, keep list, sensible human/subagent split.<br>2. Biggest blind spot: B. Coverage planner plus open-source release ignore the user&#x27;s constraints; no answer to test re-encoding or the 45-min-per-episode cost; reduced sensor rate could alter the system under test.<br>3. All five missed: validity of simulated sensing and physics themselves (depth noise model, sim-to-real fidelity); independent ground-truth verification of the metrics with synthetic known-answer trajectories; the wall-time problem, where parallel subagents compete for the same CPU and worsen RTF and DDS drops; running episodes on other machines; pre-registration; seed independence (do 10 seeds vary the world or only the noise?).</p></div>
+ </details>
+
+ <footer>
+ Generated by the <code>llm-council</code> skill on 21 October 2026, 18:50.
+ Full transcript and anonymization map in
+ <code>council-transcript.md</code>.
+ </footer>
+
+</div>
+</body>
+</html>

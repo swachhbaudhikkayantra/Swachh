@@ -7,8 +7,9 @@ from typing import Dict, List, Optional
 import numpy as np
 from scipy.spatial import cKDTree
 
+from . import geometry
 from .common import GtGrid, Run
-from .navigation import compute_navigation_metrics, _s, _f
+from .navigation import compute_navigation_metrics, _row_dt, _s, _f
 
 HALF_L, HALF_W = 0.150, 0.125
 QUERY_R = 1.2
@@ -18,8 +19,16 @@ DEFAULT_WALLS = r'^wall_|^ceiling$'
 
 def _cfg(worlds_cfg, gt):
     cfg = worlds_cfg or {}
-    if 'worlds' in cfg and gt.world_name in (cfg['worlds'] or {}):
-        cfg = cfg['worlds'][gt.world_name]
+    if 'worlds' in cfg:
+        ws = cfg['worlds'] or {}
+        nm = str(gt.world_name)
+        if nm in ws:
+            cfg = ws[nm]
+        else:  # GT stores the SDF <world name>, e.g. 'apartment_world' for key 'apartment'
+            for k, v in ws.items():
+                if nm == k + '_world' or (isinstance(v, dict) and nm == v.get('world_name_in_sdf')):
+                    cfg = v
+                    break
     return cfg
 
 
@@ -142,6 +151,31 @@ def _distances(traj, gt: GtGrid, dyn, cfg=None, radius=QUERY_R):
     return res
 
 
+def _get_shapes(gt: GtGrid, cfg):
+    """Exact obstacle shapes {model: [shape]} from gt.shapes, else the world's SDF
+    (worlds.yaml `sdf_file`); None when unavailable (grid fallback)."""
+    sh = getattr(gt, 'shapes', None)
+    if sh:
+        return sh
+    try:
+        from ..compute_metrics import resolve_sdf
+        if cfg.get('sdf_file'):
+            return geometry.load_obstacles(resolve_sdf(cfg['sdf_file']))
+    except Exception:
+        return None
+    return None
+
+
+def _distances_exact(traj, shapes, dyn, cfg):
+    """Per-obstacle SIGNED exact distance series (negative = overlap)."""
+    gx, gy, gyaw = (np.asarray(traj[k], float) for k in ('gt_x', 'gt_y', 'gt_yaw'))
+    res = geometry.trajectory_distances(gx, gy, gyaw, shapes)
+    yawr = np.where(np.isfinite(gyaw), gyaw, 0.0)
+    for nm, (x, y, yaw, size) in _dyn_series(np.asarray(traj['t'], float), dyn, cfg).items():
+        res[nm] = geometry.rect_rect_distance(gx, gy, yawr, x, y, yaw, size[0] / 2, size[1] / 2)
+    return res
+
+
 def clearance_series(traj, gt: GtGrid, dyn=None, cfg=None) -> np.ndarray:
     """Per-row min over obstacles of d_k, capped at 1.0 m (spec 06 section 6.5)."""
     n = len(traj['gt_x'])
@@ -203,12 +237,24 @@ def _rect_overlap(c1, h1, yaw1, c2, h2, yaw2):
     return True
 
 
+def _geometry_rows_exact(traj, shapes, dyn, cfg):
+    ts, models = [], []
+    tt = np.asarray(traj['t'], float)
+    for nm, d in sorted(_distances_exact(traj, shapes, dyn, cfg).items()):
+        for r in np.nonzero(d <= 0.0)[0]:
+            ts.append(float(tt[r]))
+            models.append(nm)
+    return {'t': np.array(ts), 'other_model': models}
+
+
 def _geometry_rows(traj, gt: GtGrid, dyn, cfg):
     """Rows {t, other_model} where the robot rectangle touches an obstacle."""
     ts, models = [], []
     gx, gy, gyaw, tt = (np.asarray(traj[k], float) for k in ('gt_x', 'gt_y', 'gt_yaw', 't'))
     names = list(gt.obs_names)
     dser = _dyn_series(tt, dyn, cfg)
+    # clearance <= 0 (centre-in-rectangle test can miss a touching/overlapping cell)
+    touching = {nm: np.asarray(a) <= 0.0 for nm, a in _distances(traj, gt, dyn, cfg).items()}
     R = 0.2
     rr = int(math.ceil(R / gt.res)) + 1
     h, w = gt.occ.shape
@@ -234,6 +280,9 @@ def _geometry_rows(traj, gt: GtGrid, dyn, cfg):
         for nm, (x, y, dyaw, size) in dser.items():
             if _rect_overlap((gx[r], gy[r]), (HALF_L, HALF_W), yaw,
                              (x[r], y[r]), (size[0] / 2, size[1] / 2), dyaw[r]):
+                hit.add(nm)
+        for nm, mk in touching.items():
+            if mk[r]:
                 hit.add(nm)
         for nm in sorted(hit):
             ts.append(float(tt[r]))
@@ -277,13 +326,27 @@ def compute_safety_metrics(run: Run, gt: GtGrid, worlds_cfg: dict) -> dict:
     if raw is not None and 't' in raw and len(raw['t']):
         tt = np.asarray(raw['t'], float)
         m = (tt >= t0) & (tt <= t1)
-        contact_rows = {'t': tt[m], 'other_model': [raw['other_model'][i] for i in np.nonzero(m)[0]]}
+        robot = str((run.meta or {}).get('robot_model') or 'vacuum_robot')
+        keep = [i for i in np.nonzero(m)[0]
+                if not (_s(raw['other_model'][i]) == 'vacuum_robot'
+                        or _s(raw['other_model'][i]).startswith(robot))]
+        contact_rows = {'t': tt[keep], 'other_model': [raw['other_model'][i] for i in keep]}
     elif raw is not None:
         contact_rows = {'t': np.array([]), 'other_model': []}
 
     geom_events = None
     if traj is not None:
-        geom_events = collision_events(_geometry_rows(traj, gt, run.dyn_obstacles, cfg), gap_s)
+        shapes = _get_shapes(gt, cfg)
+        grid_events = collision_events(_geometry_rows(traj, gt, run.dyn_obstacles, cfg), gap_s)
+        if shapes:
+            geom_events = collision_events(
+                _geometry_rows_exact(traj, shapes, run.dyn_obstacles, cfg), gap_s)
+            out['geometry_source'] = 'exact'
+            out['geometric_collisions_grid'] = len(grid_events)
+        else:
+            geom_events = grid_events
+            out['geometry_source'] = 'grid'
+            notes.append('no SDF shapes: grid-based geometry (approximate)')
     if use_contact:
         events = collision_events(contact_rows, gap_s)
         out['collision_source'] = 'contact'
@@ -297,6 +360,7 @@ def compute_safety_metrics(run: Run, gt: GtGrid, worlds_cfg: dict) -> dict:
     out['collision_contact_time_s'] = float(sum(e['t_end'] - e['t_start'] for e in events))
     out['collision_first_t_ep'] = (min(e['t_start'] for e in events) - t0) if events and np.isfinite(t0) else None
     out['n_collisions_geom'] = len(geom_events) if geom_events is not None else None
+    out['geometric_collisions'] = out['n_collisions_geom']   # cross-check when contact is source
     if geom_events is not None and abs(len(events) - len(geom_events)) > 2:
         notes.append('contact vs geometry disagree: contact=%d geom=%d' % (len(events), len(geom_events)))
 
@@ -311,15 +375,31 @@ def compute_safety_metrics(run: Run, gt: GtGrid, worlds_cfg: dict) -> dict:
             out[k] = 0
         notes.append('no GT trajectory rows in episode window')
     else:
-        dist = _distances(traj, gt, run.dyn_obstacles, cfg)
+        grid_dist = _distances(traj, gt, run.dyn_obstacles, cfg)
+        if shapes:
+            sdist = _distances_exact(traj, shapes, run.dyn_obstacles, cfg)
+            dist = {k: np.maximum(v, 0.0) for k, v in sdist.items()}
+            pen = np.min(np.stack(list(sdist.values())), axis=0) if sdist else np.zeros(1)
+            out['max_penetration_m'] = float(max(0.0, -pen.min()))
+            gclr = np.full(len(traj['t']), CAP)
+            for arr in grid_dist.values():
+                gclr = np.minimum(gclr, arr)
+            out['min_clearance_grid_m'] = float(gclr.min())
+            genc = _encounters_from(traj['t'], grid_dist, d_enc, 2.0, 0.5)
+            out['n_encounters_grid'] = sum(len(v) for k, v in genc.items() if not wall_re.search(k))
+        else:
+            dist = grid_dist
         clr = np.full(len(traj['t']), CAP)
         for arr in dist.values():
             clr = np.minimum(clr, arr)
         out['min_clearance_m'] = float(clr.min())
         out['mean_clearance_m'] = float(clr.mean())
         out['clearance_p05_m'] = float(np.percentile(clr, 5))
-        out['time_below_020m_s'] = float(np.sum(clr < 0.20) * 0.1)
-        out['time_below_010m_s'] = float(np.sum(clr < 0.10) * 0.1)
+        rdt = _row_dt(traj['t'])
+        out['time_below_020m_s'] = float(np.sum(rdt[clr < 0.20]))
+        out['time_below_010m_s'] = float(np.sum(rdt[clr < 0.10]))
+        if use_contact and out['min_clearance_m'] <= 0.0 and not events:
+            notes.append('min_clearance <= 0 but no contact events: check contact sensor')
         enc = _encounters_from(traj['t'], dist, d_enc, 2.0, 0.5)
         n_all = n_free_all = n_ex = n_free_ex = 0
         for nm, lst in enc.items():

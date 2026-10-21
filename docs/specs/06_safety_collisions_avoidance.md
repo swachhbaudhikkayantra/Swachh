@@ -128,3 +128,12 @@ encounters(traj, gt, dyn, d_enc=0.5, merge_s=2.0, min_s=0.5) -> dict[obstacle_na
 | 2026-10-20 | Contact sensors on chassis/camera only; ground contacts dropped | Wheels/caster always touch the floor |
 | 2026-10-20 | Encounters are per obstacle, walls excluded from the headline | Otherwise a robot circling in a 6×5 m room has one permanent wall encounter |
 | 2026-10-20 | 0.5 s event gap, 0.5 m encounter distance | User asked for no ambiguity; values live in `eval_defaults.yaml` and can be changed globally |
+
+## Decision 2026-10-21
+- Per-row dt from the `t` column (clipped to [0, 1.0] s) replaces the fixed 0.1 s in `time_below_*`.
+- Geometry fallback counts any row with clearance <= 0 as a contact (previously could report 0 collisions with min_clearance <= 0). When contact-sensor events exist they remain the source of truth; `geometric_collisions` is reported as a cross-check.
+- Self-contacts (`other_model == 'vacuum_robot'` or starting with the robot model name, meta `robot_model`) are dropped from collisions_raw.csv.
+
+## Decision 2026-10-21 (exact geometry)
+- New `metrics/geometry.py`: exact signed distance (SAT + vertex distance; negative = overlap) between the 0.30 x 0.25 m robot rectangle and SDF boxes (with yaw), cylinders/spheres (discs) and dynamic-obstacle rectangles, using gt_grid's SDF parser.
+- `min_clearance_m`, encounters and `geometric_collisions` now use these exact distances (SDF found via worlds.yaml `sdf_file`; else grid fallback, `geometry_source` = 'grid'). Grid-based values kept as `min_clearance_grid_m`, `geometric_collisions_grid`, `n_encounters_grid`. `max_penetration_m` added. Contact sensors remain the primary collision source.

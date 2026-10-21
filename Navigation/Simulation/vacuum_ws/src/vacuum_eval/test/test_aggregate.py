@@ -47,3 +47,35 @@ def test_compare_and_noise():
     out = ag.aggregate(rows)
     d = [r for r in out if r['kind'] == 'noise_delta'][0]
     assert d['delta'] == 2.0
+
+
+def test_holm_hand():
+    # p = .01,.04,.03,.005 ; sorted .005,.01,.03,.04 -> *4,*3,*2,*1 = .02,.03,.06,.04 -> mono .02,.03,.06,.06
+    adj = ag.holm_adjust([0.01, 0.04, 0.03, 0.005])
+    assert np.allclose(adj, [0.03, 0.06, 0.06, 0.02])
+
+
+def test_cluster_bootstrap_coverage():
+    rng = np.random.default_rng(0)
+    m, truth, cover, reps = 8, 0.6, 0, 200
+    for r in range(reps):
+        # beta-distributed per-episode p (ICC ~ 1/(a+b+1)=0.1), mean 0.6
+        pe = rng.beta(5.4, 3.6, size=30)
+        s = rng.binomial(m, pe).astype(float)
+        lo, hi = ag.cluster_bootstrap_ci(s, np.full(30, m), B=500, seed=r)
+        cover += lo <= 100 * truth <= hi
+    assert 0.88 <= cover / reps <= 0.99
+
+
+def test_invalid_excluded_and_keys():
+    rows = [dict(world='w', method='m', odom_noise='0', seed=str(i), status=st,
+                 x=str(v), nav_goals_succeeded=str(s), nav_goals_total='4')
+            for i, (st, v, s) in enumerate([('ok', 1, 4), ('ok', 3, 2), ('ok', 2, 3),
+                                            ('invalid', 99, 0), ('failed', 99, 0)])]
+    out = ag.aggregate(rows, B=200)
+    st = [r for r in out if r['kind'] == 'stat' and r['metric'] == 'x'][0]
+    assert st['n'] == 3 and st['n_invalid'] == 1 and st['n_failed'] == 1
+    assert st['boot_ci_lo'] <= st['mean'] <= st['boot_ci_hi']
+    p = [r for r in out if r['kind'] == 'pooled'][0]
+    assert np.isclose(p['pooled_pct'], 75.0) and 'cluster_ci_lo' in p
+    assert 'ignores clustering' in p['wilson_note']

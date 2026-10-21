@@ -118,3 +118,20 @@ shortest_path_length(gt: GtGrid, start_xy, goal_xy) -> float|None   # A* + strin
 | 2026-10-20 | `canceled_by_manager` and `unfinished` excluded from the success denominator | They are decisions of the exploration logic or the end of the episode, not navigation failures |
 | 2026-10-20 | Scripted-goal navigation tests use a map derived from the ground truth by default | Isolates the planner/controller from SLAM quality |
 | 2026-10-20 | `plan_latency` is named latency, not planner time | Measured end-to-end on topics |
+
+## Decision 2026-10-21
+- `nav_success_gt_pct`: succeeded goals whose GT position at the time Nav2 reported success is within 0.30 m of the goal; `nav_success_gt_strict_pct` uses 0.15 m. Nav2's own tolerance is no longer reused (circularity removed). Denominator is all counted goals.
+- `canceled` (goal_sender) is a failure (`nav_fail_canceled`) and stays in the denominator, except goals canceled by the harness at episode end (t_end within 1 s of episode_end_t): excluded and counted in `nav_goals_truncated`.
+- Time-based keys (`time_stationary_s`, `time_rotating_inplace_s`) use the actual per-row dt from `t` (diff clipped to [0, 1.0] s).
+
+## 2026-10-21 - Localization source option (`--localization`)
+
+`run_episode --localization {auto,slam,amcl,gt}` (scripted_goals). `auto` keeps the old behaviour
+(nav-map gt -> AMCL, slam -> RTAB-Map). `gt` (requires `--nav-map gt`) runs plain `nav2.launch.py`
+(AMCL cannot be disabled by a launch argument of `nav2_localization.launch.py`), serves the exported
+GT map with `nav2_map_server` (lifecycle configure/activate via a bash wrapper) and starts
+`gt_localization_node`, which publishes TF map->odom = T_map_world * T_world_base(GT) * inv(T_odom_base)
+at 30 Hz with the GT stamp. map_origin_x/y/yaw default 0 because the exported GT map frame equals world.
+The /initialpose step is skipped; run_meta records `localization_mode: gt`. This separates navigation
+failures from localization error. validity.py skips RTAB-Map rules only for `amcl`; it needs a change
+to also skip for `gt`.

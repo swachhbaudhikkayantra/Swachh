@@ -155,7 +155,7 @@ controller_server:
         cost_power: 1
         cost_weight: 3.81
         critical_cost: 300.0
-        consider_footprint: false   # robot_radius used in costmap — no polygon footprint defined
+        consider_footprint: true   # was false: robot uses rectangular polygon footprint; centre-cell check clipped corners
         collision_cost: 1000000.0
         near_goal_smoothing_factor: 0.1
 
@@ -260,7 +260,7 @@ global_costmap:
       global_frame: map
       robot_base_frame: base_footprint
       use_sim_time: true
-      robot_radius: 0.18               # m — vacuum robot circular footprint
+      footprint: "[[0.15, 0.125], [0.15, -0.125], [-0.15, -0.125], [-0.15, 0.125]]"   # chassis 0.30 x 0.25 m
       resolution: 0.05
       track_unknown_space: true        # required for frontier exploration
       plugins: ["static_layer", "obstacle_layer", "inflation_layer"]
@@ -272,23 +272,43 @@ global_costmap:
         # Both publish OccupancyGrid on this topic — the only difference is source.
         map_topic: /map
       obstacle_layer:
-        plugin: "nav2_costmap_2d::ObstacleLayer"
+        plugin: "spatio_temporal_voxel_layer/SpatioTemporalVoxelLayer"   # STVL: time-decay + frustum clearing (global, long decay)
         enabled: true
-        observation_sources: laser_scan
-        laser_scan:
-          topic: /scan_from_depth      # laser scan generated from depth image
-          max_obstacle_height: 2.0
-          clearing: true
+        voxel_decay: 60.0             # s, linear decay: ghosts outside the camera FOV expire
+        decay_model: 0                 # 0=linear
+        voxel_size: 0.05
+        track_unknown_space: false
+        mark_threshold: 0
+        update_footprint_enabled: true
+        combination_method: 1          # 1=max
+        publish_voxel_map: false
+        transform_tolerance: 0.2
+        observation_sources: depth_mark depth_clear
+        depth_mark:
+          data_type: LaserScan         # /scan_from_depth; no PointCloud2 bridge needed
+          topic: /scan_from_depth
           marking: true
-          data_type: "LaserScan"
-          raytrace_max_range: 3.0
-          raytrace_min_range: 0.0
-          obstacle_max_range: 2.5
-          obstacle_min_range: 0.2
+          clearing: false
+          obstacle_range: 4.0
+          min_obstacle_height: 0.03    # unified band z [0.03, 0.30] m
+          max_obstacle_height: 0.30
+          inf_is_valid: false
+          filter: "passthrough"
+        depth_clear:
+          data_type: LaserScan
+          topic: /scan_from_depth
+          marking: false
+          clearing: true
+          min_z: 0.105
+          max_z: 4.0
+          vertical_fov_angle: 1.0      # rad (no vfov in camera.yaml)
+          horizontal_fov_angle: 1.5010 # rad, depth HFOV (camera.yaml)
+          decay_acceleration: 0.0      # must be 0 for scans
+          model_type: 0                # 0=depth camera frustum
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
-        cost_scaling_factor: 3.0
-        inflation_radius: 0.35         # m — robot radius (0.18) + 0.17 safety margin
+        cost_scaling_factor: 5.0
+        inflation_radius: 0.28
       always_send_full_costmap: true
 
 # ── Local Costmap ─────────────────────────────────────────────────────────────
@@ -305,27 +325,47 @@ local_costmap:
       width: 4                         # m — local map width
       height: 4                        # m — local map height
       resolution: 0.05
-      robot_radius: 0.18
+      footprint: "[[0.15, 0.125], [0.15, -0.125], [-0.15, -0.125], [-0.15, 0.125]]"   # chassis 0.30 x 0.25 m
       track_unknown_space: false
       plugins: ["obstacle_layer", "inflation_layer"]
       obstacle_layer:
-        plugin: "nav2_costmap_2d::ObstacleLayer"
+        plugin: "spatio_temporal_voxel_layer/SpatioTemporalVoxelLayer"   # STVL: time-decay + frustum clearing (local)
         enabled: true
-        observation_sources: laser_scan
-        laser_scan:
+        voxel_decay: 15.0             # s, linear decay: ghosts outside the camera FOV expire
+        decay_model: 0                 # 0=linear
+        voxel_size: 0.05
+        track_unknown_space: false
+        mark_threshold: 0
+        update_footprint_enabled: true
+        combination_method: 1          # 1=max
+        publish_voxel_map: false
+        transform_tolerance: 0.2
+        observation_sources: depth_mark depth_clear
+        depth_mark:
+          data_type: LaserScan         # /scan_from_depth; no PointCloud2 bridge needed
           topic: /scan_from_depth
-          max_obstacle_height: 2.0
-          clearing: true
           marking: true
-          data_type: "LaserScan"
-          raytrace_max_range: 3.0
-          raytrace_min_range: 0.0
-          obstacle_max_range: 2.5
-          obstacle_min_range: 0.2
+          clearing: false
+          obstacle_range: 4.0
+          min_obstacle_height: 0.03    # unified band z [0.03, 0.30] m
+          max_obstacle_height: 0.30
+          inf_is_valid: false
+          filter: "passthrough"
+        depth_clear:
+          data_type: LaserScan
+          topic: /scan_from_depth
+          marking: false
+          clearing: true
+          min_z: 0.105
+          max_z: 4.0
+          vertical_fov_angle: 1.0      # rad (no vfov in camera.yaml)
+          horizontal_fov_angle: 1.5010 # rad, depth HFOV (camera.yaml)
+          decay_acceleration: 0.0      # must be 0 for scans
+          model_type: 0                # 0=depth camera frustum
       inflation_layer:
         plugin: "nav2_costmap_2d::InflationLayer"
-        cost_scaling_factor: 3.0
-        inflation_radius: 0.35
+        cost_scaling_factor: 5.0
+        inflation_radius: 0.28
       always_send_full_costmap: true
 
 # ── Map Server (Stage 5) ──────────────────────────────────────────────────────

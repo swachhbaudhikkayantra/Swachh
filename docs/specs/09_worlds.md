@@ -109,3 +109,10 @@ Every `spawn_candidate` and `fixed` goal is validated by test T-03x (free in `na
 |---|---|---|
 | 2026-10-20 | Fill the corridor gaps (default) | Fastest way to get a sealed region; doors can be added later |
 | 2026-10-20 | Dynamic obstacles via VelocityControl, not actors | Actors have no collision physics |
+
+## 2026-10-21 Per-wall textures (anti perceptual aliasing)
+
+- `vacuum_gazebo/scripts/make_textures.py` deterministically (fixed seeds) generates `wall_00..15.png` (1024 px; varied brick size, hue family, mark pattern) and `floor_0..3.png` (2048 px) into `worlds/textures/`. Old `wall.png`/`floor.png` are kept.
+- Every world except `symmetric_hall.sdf` now gives each wall model its own `wall_NN.png` (outer N/S/E/W always differ; interior walls get further indices; a few interior walls may share a texture with another wall in the same world, e.g. `wall_mid_n/s`), with a per-world floor texture. Different worlds use different offsets.
+- `symmetric_hall.sdf` is deliberately unchanged (identical repeated wall.png/floor.png): it tests perceptual aliasing.
+- `sim.launch.py` `_launch_gazebo`: the baked world-with-robot SDF now goes in a unique `tempfile.mkdtemp(prefix='vacuum_world_')` dir per launch (no stale files, parallel runs safe); path logged with LogInfo.

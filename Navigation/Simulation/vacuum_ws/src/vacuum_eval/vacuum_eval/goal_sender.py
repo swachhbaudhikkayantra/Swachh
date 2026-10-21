@@ -44,7 +44,11 @@ def map_result(status):
         return 'succeeded'
     if status == GoalStatus.STATUS_ABORTED:
         return 'nav_aborted'
-    return 'nav_aborted' if status != GoalStatus.STATUS_CANCELED else 'canceled'
+    # 'canceled' is counted as a failure by metrics/navigation.py (except harness cancels at
+    # episode end, which are reported as nav_goals_truncated).
+    if status == GoalStatus.STATUS_CANCELED:
+        return 'canceled'
+    return 'nav_aborted'
 
 
 class GoalSender(Node):

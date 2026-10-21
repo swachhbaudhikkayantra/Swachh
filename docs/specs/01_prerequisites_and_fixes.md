@@ -114,3 +114,28 @@ See `09_worlds.md`. Required before any coverage/completeness number from the co
 |---|---|---|
 | 2026-10-20 | Noise node replaces the odom relay and TF source in `odom_mode:=eval` instead of adding a second odom topic | RTAB-Map takes its odometry from TF; a parallel topic would not influence it |
 | 2026-10-20 | Noise = persistent scale errors + heading random walk on increments | White noise on the pose or independent per-message noise gives no drift (tested); real wheel odometry error is correlated |
+
+## Decisions 2026-10-21
+
+- Odom calibration reverted: `wheel_separation_multiplier` 0.945 -> 1.0 (fudge overshot, odom/GT yaw 0.947 -> 1.06; slip is non-stationary so drift is measured, not tuned away). `cmd_vel_timeout` 1.5 -> 0.5 (1.5 masked a starved controller).
+- MPPI `CostCritic.consider_footprint` false -> true (robot has a rectangular polygon footprint; centre-cell check clipped corners). It is the only `consider_footprint` flag in nav2_params.yaml; no other critic has one.
+- One obstacle height band everywhere: z in [0.03, 0.30] m. Robot top is about 0.19 m (base_link_z 0.093 + camera top 0.100); band top = max(0.30, 0.19+0.02) = 0.30.
+  - nav2 obstacle_layer (local and global): `min_obstacle_height` added 0.03; `max_obstacle_height` 2.0 -> 0.30.
+  - rtabmap: `Grid/MaxGroundHeight` 0.15 -> 0.03; `Grid/MaxObstacleHeight` 2.0 -> 0.30. If floor shows as obstacles, raise MaxGroundHeight to 0.05.
+  - eval_defaults: `robot_body_z_hi` 0.25 -> 0.30 (`robot_body_z_lo` already 0.03).
+- Limitation: `depthimage_to_laserscan` takes a horizontal slice of the depth image, so the nav2 height band does not filter the scan (launch files unchanged).
+
+## 2026-10-21 - STVL replaces ObstacleLayer (item 15)
+
+- Problem: the forward-only depth camera (HFOV 1.501 rad, 0.105-4 m) never cleared cells that left the FOV, leaving ghost obstacles ("Start occupied", "no valid path").
+- Change (`vacuum_nav2/config/nav2_params.yaml`): the layer named `obstacle_layer` is now `spatio_temporal_voxel_layer/SpatioTemporalVoxelLayer` in both costmaps. Local `voxel_decay` 15 s, global 60 s (linear, voxel 0.05, band z [0.03, 0.30], `mark_threshold` 0, `update_footprint_enabled` true, `publish_voxel_map` false). A separate clearing source applies frustum clearing (HFOV 1.5010, VFOV 1.0 rad assumed, z 0.105-4.0, `model_type` 0).
+- Source: STVL supports `data_type: LaserScan`, so it reads `/scan_from_depth`. No change to `gz_bridge.yaml` is needed. `exec_depend spatio_temporal_voxel_layer` added to `vacuum_nav2/package.xml`.
+- Unchanged: Smac Hybrid DUBIN planner, footprint, inflation.
+- Caveat: the scan is a single horizontal slice, so marking stays 2D; frustum clearing and decay remove ghosts. The VFOV is an assumption.
+
+### 1.5.1 Goal-selection loop guard (2026-10-21)
+
+- Problem: in pilot1/apartment/frontier/seed_002 the explorer picked the same frontier ~340 times. `_snap_goal()` snapped its centroid to the cell the robot already occupied, so Nav2 returned SUCCEEDED in ~0.1 s, the frontier stayed, and it was re-selected (episode ended `stuck`).
+- Change (`exploration_manager.py`): (1) a snapped goal within `min_goal_distance` (0.30 m) of the robot is not sent; the frontier is blacklisted with reason `goal_at_robot`, no goal event is emitted, and the new status field `frontiers_skipped` is incremented. (2) After a SUCCEEDED goal, if within 2 detection cycles a frontier within `blacklist_radius` is still present and free cells grew by fewer than `map_growth_threshold` since the goal was sent, it is blacklisted as `no_information_gain`. (3) New parameter `min_frontier_size_m` (default 0.5): minimum frontier length in metres (cells x map resolution); smaller frontiers are ignored by the manager. The detector's `min_frontier_size` stays in cells.
+- Frame fix: the robot position came from `/odom` (odom frame) but goals and frontiers are in `map`. It is now read from TF map->base_footprint (odom fallback with a one-time warning). This also corrects the selector's distance term.
+- Tests: `vacuum_exploration/test/test_goal_selection_guard.py` (pure helper functions).

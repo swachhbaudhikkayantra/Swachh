@@ -12,6 +12,8 @@ SQRT2 = math.sqrt(2.0)
 FAIL_RESULTS = ('nav_aborted', 'timeout', 'oscillation', 'rejected')
 WHEEL_BASE = 0.268
 GOAL_TOL = 0.30
+GOAL_TOL_STRICT = 0.15
+HARNESS_END_S = 1.0
 MIN_SHORTEST = 0.5
 SNAP_RADIUS = 0.30
 
@@ -30,6 +32,17 @@ def _f(v) -> float:
         return float(v)
     except (TypeError, ValueError):
         return float('nan')
+
+
+def _row_dt(t) -> np.ndarray:
+    """Per-row duration (s) from the time column: diff clipped to [0, 1.0]; last row repeats
+    the previous dt (0.1 s if a single row)."""
+    t = np.asarray(t, float)
+    if len(t) < 2:
+        return np.full(len(t), 0.1)
+    d = np.clip(np.diff(t), 0.0, 1.0)
+    d = np.where(np.isfinite(d), d, 0.0)
+    return np.append(d, d[-1])
 
 
 def _stat(vals, fn):
@@ -269,12 +282,18 @@ def compute_navigation_metrics(run: Run, gt: GtGrid) -> dict:
     recs = goal_records(run, t0, t1)
     gtall = _gt_all(run)
 
+    t_end_ep = float(run.episode_end_t)
+    trunc = [r for r in recs if r['result'] == 'canceled' and r['t_end'] is not None
+             and np.isfinite(t_end_ep) and t_end_ep > 0 and r['t_end'] >= t_end_ep - HARNESS_END_S]
+    trunc_ids = {id(r) for r in trunc}
     succ = [r for r in recs if r['result'] == 'succeeded']
-    fails = [r for r in recs if r['result'] in FAIL_RESULTS]
+    # a goal canceled by anything but the harness at episode end is a failure
+    fails = [r for r in recs if r['result'] in FAIL_RESULTS or
+             (r['result'] == 'canceled' and id(r) not in trunc_ids)]
     canc = [r for r in recs if r['result'] == 'canceled_by_manager']
     unf = [r for r in recs if r['result'] == 'unfinished']
     other = [r for r in recs if r['result'] not in
-             ('succeeded', 'canceled_by_manager', 'unfinished') + FAIL_RESULTS]
+             ('succeeded', 'canceled_by_manager', 'unfinished', 'canceled') + FAIL_RESULTS]
     if other:
         notes.append('goals with unknown result ignored: %d' % len(other))
     total = len(succ) + len(fails)
@@ -283,24 +302,31 @@ def compute_navigation_metrics(run: Run, gt: GtGrid) -> dict:
     out['nav_goals_failed'] = len(fails)
     out['nav_goals_canceled'] = len(canc)
     out['nav_goals_unfinished'] = len(unf)
+    out['nav_goals_truncated'] = len(trunc)
+    out['nav_fail_canceled'] = sum(r['result'] == 'canceled' for r in fails)
     out['nav_success_pct'] = 100.0 * len(succ) / total if total else None
     out['nav_fail_aborted'] = sum(r['result'] == 'nav_aborted' for r in fails)
     out['nav_fail_timeout'] = sum(r['result'] == 'timeout' for r in fails)
     out['nav_fail_oscillation'] = sum(r['result'] == 'oscillation' for r in fails)
     out['nav_fail_rejected'] = sum(r['result'] == 'rejected' for r in fails)
 
-    # GT-based success
+    # GT-based success: GT position at the time Nav2 reported the result, within GOAL_TOL (0.30 m)
+    # of the goal (and, strict, 0.15 m). Nav2's own xy tolerance is not reused, so this is an
+    # independent check against ground truth rather than a restatement of Nav2's verdict.
     if total and gtall is not None:
-        reached = 0
+        reached = strict = 0
         for r in succ + fails:
-            if r['t_end'] is None:
+            if r['t_end'] is None or r['result'] != 'succeeded':
                 continue
             px, py = _gt_at(gtall, r['t_end'])
-            if math.hypot(px - r['goal_w'][0], py - r['goal_w'][1]) <= GOAL_TOL:
-                reached += 1
+            d = math.hypot(px - r['goal_w'][0], py - r['goal_w'][1])
+            reached += d <= GOAL_TOL
+            strict += d <= GOAL_TOL_STRICT
         out['nav_success_gt_pct'] = 100.0 * reached / total
+        out['nav_success_gt_strict_pct'] = 100.0 * strict / total
     else:
         out['nav_success_gt_pct'] = None
+        out['nav_success_gt_strict_pct'] = None
         if total:
             notes.append('nav_success_gt_pct: no GT trajectory')
     gtimes = [r['t_end'] - r['t_start'] for r in succ]
@@ -431,8 +457,9 @@ def compute_navigation_metrics(run: Run, gt: GtGrid) -> dict:
     out['energy_proxy_m2ps'] = float(np.nansum(e))
     dur = t[-1] - t[0]
     out['mean_speed_mps'] = dgt / dur if dur > 0 else None
-    out['time_stationary_s'] = float(np.sum(vok & (np.abs(vx) < 0.02) & (np.abs(wz) < 0.05)) * 0.1)
-    out['time_rotating_inplace_s'] = float(np.sum(vok & (np.abs(vx) < 0.05) & (np.abs(wz) >= 0.05)) * 0.1)
+    rdt = _row_dt(t)
+    out['time_stationary_s'] = float(np.sum(rdt[vok & (np.abs(vx) < 0.02) & (np.abs(wz) < 0.05)]))
+    out['time_rotating_inplace_s'] = float(np.sum(rdt[vok & (np.abs(vx) < 0.05) & (np.abs(wz) >= 0.05)]))
 
     mv = vok & (np.abs(vx) >= 0.05)
     if mv.any():

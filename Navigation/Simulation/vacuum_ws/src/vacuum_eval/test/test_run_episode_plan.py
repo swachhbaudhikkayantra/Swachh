@@ -137,3 +137,15 @@ def test_initialpose_and_dirs():
     v = run_batch.variants('scripted_goals', {'goal_lists': ['fixed', 'random20']})
     assert [d for d, _ in v] == ['scripted_goals_fixed', 'scripted_goals_random20']
     assert run_batch.variants('frontier', {}) == [('frontier', [])]
+
+
+def test_localization_gt_plan_and_meta():
+    a = ns(method='scripted_goals', localization='gt')
+    names = [s.name for s in plan(a)['stack']]
+    assert names == ['sim', 'nav2', 'map_server', 'gt_localization']
+    assert 'nav2_localization' not in ' '.join(s.cmd for s in plan(a)['stack'])
+    assert 'initialpose' not in plan(a)['gates']
+    assert re.meta_extras(a, {}, SPAWN, 'g')['localization_mode'] == 'gt'
+    assert re.meta_extras(ns(method='scripted_goals'), {}, SPAWN, 'g')['localization_mode'] == 'amcl'
+    assert re.meta_extras(ns(method='scripted_goals', nav_map='slam', localization='slam'),
+                          {}, SPAWN, 'g')['localization_mode'] == 'rtabmap'

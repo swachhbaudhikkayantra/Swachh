@@ -4,6 +4,7 @@ import csv
 import json
 import math
 import os
+import time
 
 import numpy as np
 import psutil
@@ -94,6 +95,7 @@ class Recorder(Node):
         self.stop = False
         self.files = {}
         self.writers = {}
+        self.gt_stamp = None
         self.gt = None          # (t_recv, x, y, yaw, vx, wz)
         self.odom = None
         self.dyn = {}
@@ -111,8 +113,8 @@ class Recorder(Node):
         self.open('events', ['event', 'detail'])
         self.open('trajectory', ['gt_x', 'gt_y', 'gt_yaw', 'gt_vx', 'gt_wz',
                                  'odom_x', 'odom_y', 'odom_yaw',
-                                 'est_x', 'est_y', 'est_yaw', 'est_ok'])
-        self.open('cmd_vel', ['source', 'vx', 'vy', 'wz'])
+                                 'est_x', 'est_y', 'est_yaw', 'est_ok', 'est_interp', 'wall_t'])
+        self.open('cmd_vel', ['source', 'vx', 'vy', 'wz', 'wall_t'])
         self.open('goal_events', ['src', 'goal_seq', 'event', 'result', 'x', 'y',
                                   'nav2_error_code', 'uuid'])
         self.open('feedback', ['uuid', 'distance_remaining', 'number_of_recoveries',
@@ -124,7 +126,8 @@ class Recorder(Node):
         self.open('collisions_raw', ['sensor', 'own_entity', 'other_entity', 'other_model',
                                      'px', 'py', 'pz'])
         self.open('loop_events', ['ref_id', 'loop_closure_id', 'proximity_detection_id',
-                                  'gt_x', 'gt_y', 'gt_yaw', 'est_x', 'est_y', 'est_yaw'])
+                                  'gt_x', 'gt_y', 'gt_yaw', 'est_x', 'est_y', 'est_yaw',
+                                  'lc_tx', 'lc_ty', 'lc_tyaw'])
         if self.extra:
             self.open('dyn_obstacles', ['name', 'x', 'y', 'yaw', 'vx', 'vy', 'wz'])
         self.open('rtf', ['wall_dt', 'sim_dt', 'rtf'])
@@ -217,6 +220,8 @@ class Recorder(Node):
                 vals = [f6(t), f6(t - self.t0)] + [f6(v) for v in vals]
         else:
             vals = [f6(v) for v in vals]
+        if name in ('trajectory', 'cmd_vel'):
+            vals = vals + [f6(time.time())]
         w.writerow(vals)
         self.files[name].flush()
 
@@ -231,6 +236,7 @@ class Recorder(Node):
         pp, tw = m.pose.pose, m.twist.twist
         self.gt = (self.now(), pp.position.x, pp.position.y, yaw_of(pp.orientation),
                    tw.linear.x, tw.angular.z)
+        self.gt_stamp = (m.header.stamp.sec, m.header.stamp.nanosec)
 
     def on_odom(self, m):
         pp = m.pose.pose
@@ -242,14 +248,27 @@ class Recorder(Node):
         self.dyn[name] = (self.now(), pp.position.x, pp.position.y, yaw_of(pp.orientation),
                           tw.linear.x, tw.linear.y, tw.angular.z)
 
-    def est_pose(self):
-        try:
-            tf = self.tf_buffer.lookup_transform('map', 'base_footprint', Time(),
-                                                 timeout=Duration(seconds=0.05))
-        except Exception:
-            return None
+    def est_pose(self, stamp=None):
+        """Returns (x, y, yaw, interp) or None. With a stamp (sec, nanosec) the lookup is
+        at that time (timeout 0.1 s); on failure falls back to latest (interp 0)."""
+        tf, interp = None, 0
+        if stamp is not None and (stamp[0] or stamp[1]):
+            try:
+                tf = self.tf_buffer.lookup_transform(
+                    'map', 'base_footprint',
+                    Time(seconds=stamp[0], nanoseconds=stamp[1], clock_type=ClockType.ROS_TIME),
+                    timeout=Duration(seconds=0.1))
+                interp = 1
+            except Exception:
+                tf = None
+        if tf is None:
+            try:
+                tf = self.tf_buffer.lookup_transform('map', 'base_footprint', Time(),
+                                                     timeout=Duration(seconds=0.05))
+            except Exception:
+                return None
         tr = tf.transform
-        return tr.translation.x, tr.translation.y, yaw_of(tr.rotation)
+        return tr.translation.x, tr.translation.y, yaw_of(tr.rotation), interp
 
     def on_sample(self):
         t = self.now()
@@ -257,7 +276,7 @@ class Recorder(Node):
             self.t0 = t
         gt = self.gt if self.gt and t - self.gt[0] <= 0.2 else None
         od = self.odom if self.odom and t - self.odom[0] <= 0.2 else None
-        est = self.est_pose()
+        est = self.est_pose(self.gt_stamp if gt else None)
         if gt and not self.first_gt:
             self.first_gt = True
             self.event('first_gt_sample', f6(t))
@@ -266,8 +285,9 @@ class Recorder(Node):
             self.event('first_est_sample', f6(t))
         v = [gt[1], gt[2], gt[3], gt[4], gt[5]] if gt else [None] * 5
         v += list(od[1:4]) if od else [None] * 3
-        v += list(est) if est else [None] * 3
+        v += list(est[:3]) if est else [None] * 3
         v.append(1 if est else 0)
+        v.append(est[3] if est else 0)
         self.row('trajectory', v, t)
         for name, d in self.dyn.items():
             if t - d[0] <= 0.2:
@@ -354,7 +374,20 @@ class Recorder(Node):
         est = self.est_pose()
         self.row('loop_events', [msg.ref_id, msg.loop_closure_id, msg.proximity_detection_id]
                  + (list(gt[1:4]) if gt else [None] * 3)
-                 + (list(est) if est else [None] * 3), t)
+                 + (list(est[:3]) if est else [None] * 3)
+                 + self.lc_transform(msg), t)
+
+    @staticmethod
+    def lc_transform(msg):
+        """[tx, ty, yaw] of Info.loop_closure_transform (RTAB-Map Link ref->loop: pose_loop =
+        pose_ref * T), or Nones when no closure / identity-zero (unset) transform."""
+        if msg.loop_closure_id <= 0:
+            return [None] * 3
+        tr, q = msg.loop_closure_transform.translation, msg.loop_closure_transform.rotation
+        if q.x == q.y == q.z == q.w == 0.0:
+            return [None] * 3
+        yaw = math.atan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (q.y * q.y + q.z * q.z))
+        return [tr.x, tr.y, yaw]
 
     def on_tf(self, msg):
         for tr in msg.transforms:
@@ -425,6 +458,10 @@ class Recorder(Node):
             self.write_final_map()
         except Exception as e:  # keep finalising
             self.event('final_map_error', str(e))
+        # publishers (sensor exists) is distinct from messages seen (a contact happened)
+        pubs = sum(len(self.get_publishers_info_by_topic('/vacuum_robot/contacts/' + n))
+                   for n in ('chassis', 'camera_mount', 'camera'))
+        self.event('contact_publishers', pubs)
         self.event('contact_topic_alive', 1 if self.contacts_seen else 0)
         self.event('ground_contacts_dropped', self.ground_dropped)
         self.event('recorder_stopped', f6(self.now()))

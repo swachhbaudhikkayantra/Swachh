@@ -107,3 +107,23 @@ def test_compute_coverage_with_trajectory(empty_gt, tmp_path):
     assert r['t_to_95_explored_s'] is not None and r['coverage_explored_auc'] > 0
     assert r['t_to_50_cleaned_s'] is None
     assert (tmp_path / 'coverage_curve.csv').exists() and (tmp_path / 'missed_explored.png').exists()
+
+
+def test_reachable_headline_and_aclean_keys(empty_gt, tmp_path):
+    tr = line(-2, 0, 2, 0)
+    t = 100.0 + times(tr)
+    run = Run(run_dir=str(tmp_path), meta=dict(spawn_x=0.0, spawn_y=0.0, spawn_yaw=0.0,
+                                                swath_width_m=W),
+              trajectory=dict(t=t, gt_x=tr[:, 0], gt_y=tr[:, 1], gt_yaw=tr[:, 2]),
+              episode_start_t=100.0, episode_end_t=float(t[-1]))
+    data = np.full(empty_gt.occ.shape, -1, np.int8)
+    data[empty_gt.a_clean] = 0
+    data[empty_gt.occ] = 100
+    run.maps_final = dict(data=data, resolution=0.05, origin_x=empty_gt.x0, origin_y=empty_gt.y0)
+    r = compute_coverage(run, empty_gt, write_outputs=False)
+    for k in ('coverage_explored_aclean_pct', 'coverage_cleaned_aclean_pct',
+              'missed_area_aclean_m2', 'cleaning_efficiency_aclean',
+              'map_completeness_aligned_diag_pct', 'map_completeness_aligned_pct'):
+        assert r[k] is not None
+    assert r['coverage_cleaned_pct'] >= r['coverage_cleaned_aclean_pct'] - 1e-9
+    assert any('diagnostic' in n for n in r['notes'])

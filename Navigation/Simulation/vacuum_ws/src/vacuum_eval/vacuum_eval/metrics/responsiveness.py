@@ -1,5 +1,6 @@
 """Responsiveness: step-test, goal-motion and obstacle reaction latencies, topic-rate
-health (docs/specs/07). All times are sim seconds."""
+health (docs/specs/07). Times are sim seconds, except step-test (cmd_motion/stop)
+primary latencies which are wall-clock controller latency (Decision 2026-10-21)."""
 
 import math
 from typing import Dict, List, Optional
@@ -44,7 +45,12 @@ def _window(run: Run, t):
     return np.ones(len(t), dtype=bool)
 
 
-def step_events(run: Run, deadlines) -> List[dict]:
+def _has_wall(run: Run) -> bool:
+    re = run.responsiveness_events
+    return re is not None and 'wall_latency_s' in re
+
+
+def step_events(run: Run, deadlines, wall=False) -> List[dict]:
     re = run.responsiveness_events
     out = []
     if re is None or 'event' not in re:
@@ -52,6 +58,10 @@ def step_events(run: Run, deadlines) -> List[dict]:
     for k in range(len(re['event'])):
         kind = str(re['event'][k])
         if kind not in ('cmd_motion', 'stop'):
+            continue
+        if wall and 'wall_latency_s' in re:
+            wl = float(re['wall_latency_s'][k])
+            out.append(_event(kind, 0.0, None if math.isnan(wl) else wl, deadlines[kind]))
             continue
         lat = float(re['latency_s'][k]) if 'latency_s' in re else float('nan')
         t_a = float(re['t_a'][k])
@@ -203,7 +213,8 @@ def compute_responsiveness_metrics(run: Run, deadlines: Optional[Dict[str, float
                                    rate_floor: Optional[Dict[str, float]] = None) -> dict:
     dl = dict(DEFAULT_DEADLINES)
     dl.update(deadlines or {})
-    events = (step_events(run, dl) + goal_events_list(run, dl) + obstacle_events(run, dl))
+    use_wall = _has_wall(run)
+    events = (step_events(run, dl, wall=use_wall) + goal_events_list(run, dl) + obstacle_events(run, dl))
     out: dict = {}
     n_all = len(events)
     n_met = sum(e['met'] for e in events)
@@ -216,6 +227,17 @@ def compute_responsiveness_metrics(run: Run, deadlines: Optional[Dict[str, float
         lat = np.array([e['latency_s'] for e in ev if e['latency_s'] is not None]) * 1000.0
         out['lat_%s_ms_mean' % kind] = float(lat.mean()) if len(lat) else None
         out['lat_%s_ms_p95' % kind] = float(np.percentile(lat, 95)) if len(lat) else None
+    out['resp_definition'] = 'wall_clock_controller_latency'
+    notes: List[str] = []
+    if not use_wall and any(e['kind'] in ('cmd_motion', 'stop') for e in events):
+        notes.append('wall-clock stamps missing')
+    out['notes'] = notes
+    sim = step_events(run, dl, wall=False)
+    for kind in ('cmd_motion', 'stop'):
+        lat = np.array([e['latency_s'] for e in sim if e['kind'] == kind
+                        and e['latency_s'] is not None]) * 1000.0
+        out['lat_%s_ms_mean_sim' % kind] = float(lat.mean()) if len(lat) else None
+        out['lat_%s_ms_p95_sim' % kind] = float(np.percentile(lat, 95)) if len(lat) else None
     stack = run.meta.get('stack')
     out['resp_stack'] = stack if stack in ('bare', 'loaded') else 'episode'
     pct, _ = topic_rate_health(run, rate_floor)

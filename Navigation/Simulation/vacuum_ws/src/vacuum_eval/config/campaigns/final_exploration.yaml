@@ -1,0 +1,9 @@
+# FROZEN test campaign. Est: 600 s sim ~ 22 min/episode. 6 worlds x 10 seeds x 2 noise = 120 episodes ~ 44 h (symmetric_hall added for false-loop-closure / perceptual-aliasing measurement).
+experiment: final_exploration
+split: test
+worlds: [office, corridor, two_rooms_door, multi_room_loop, maze_dead_ends, symmetric_hall]
+methods: [frontier]
+seeds: [101, 102, 103, 104, 105, 106, 107, 108, 109, 110]
+odom_noise: [0, 1]
+timeout_sim_sec: 600
+headless: 1

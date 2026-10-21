@@ -14,6 +14,8 @@ SWEPT_REACH_FACTOR = math.sqrt(2) / 2   # reach = res * this (half cell diagonal
 RESAMPLE_DIST_M = 0.02
 RESAMPLE_YAW_RAD = 0.05
 V_REF = 0.30
+TIE_EPS_X = 3.1e-7
+TIE_EPS_Y = 1.7e-7
 _S3 = np.ones((3, 3), bool)
 
 
@@ -53,12 +55,27 @@ def map_classes(sampled: np.ndarray):
     return sampled == 0, sampled >= 65
 
 
-def coverage_explored(sampled: np.ndarray, gt: GtGrid) -> float:
-    """Percent of a_clean cells that the map marks free."""
-    n = int(gt.a_clean.sum())
+R_INSCRIBED_M = 0.125
+
+
+def reach_mask(gt: GtGrid, r_inscribed: float = R_INSCRIBED_M) -> np.ndarray:
+    """Cleanable cells the robot body can actually sweep: a_clean cells within r_inscribed
+    of the robot-centre reachable set (gt.a_reach, else gt.navigable)."""
+    base = gt.a_reach if getattr(gt, 'a_reach', None) is not None else gt.navigable
+    base = np.asarray(base, bool)
+    if not base.any():
+        return np.zeros_like(gt.a_clean)
+    d = ndimage.distance_transform_edt(~base) * gt.res
+    return (d <= r_inscribed + 1e-9) & gt.a_clean
+
+
+def coverage_explored(sampled: np.ndarray, gt: GtGrid, mask: Optional[np.ndarray] = None) -> float:
+    """Percent of mask (default a_clean) cells that the map marks free."""
+    A = gt.a_clean if mask is None else mask
+    n = int(A.sum())
     if n == 0:
         return float('nan')
-    return 100.0 * int((gt.a_clean & (sampled == 0)).sum()) / n
+    return 100.0 * int((A & (sampled == 0)).sum()) / n
 
 
 def _ratio(a, b):
@@ -156,9 +173,11 @@ def _interval_cells(traj: np.ndarray, gt: GtGrid, width_m: float):
     shp = (len(k0), len(off), len(off))
     I = np.broadcast_to(ci[:, None, None] + off[None, None, :], shp)
     J = np.broadcast_to(cj[:, None, None] + off[None, :, None], shp)
-    px = gt.x0 + (I + 0.5) * gt.res
-    py = gt.y0 + (J + 0.5) * gt.res
-    tol = 1e-9
+    # Tie rule: displace sample points by a tiny fixed offset so a centre lying exactly on a
+    # swath edge counts for one side only (half-open fill) instead of both (+20% bias).
+    px = gt.x0 + (I + 0.5) * gt.res + TIE_EPS_X
+    py = gt.y0 + (J + 0.5) * gt.res + TIE_EPS_Y
+    tol = 0.0
 
     def tri(p, q, r):
         def cr(u, v, w):
@@ -202,14 +221,15 @@ def swept_grid(traj_gt: np.ndarray, t: np.ndarray, gt: GtGrid, width_m: float):
 
 
 def swept_curve(traj_gt: np.ndarray, t: np.ndarray, gt: GtGrid, width_m: float,
-                sample_times) -> np.ndarray:
+                sample_times, mask: Optional[np.ndarray] = None) -> np.ndarray:
     """Cleaned coverage (%) at each sample time using only rows with t <= sample time.
     Single pass; equals swept_grid() on the truncated trajectory."""
     t = np.asarray(t, float)
     H, W = gt.occ.shape
     HW = H * W
     keys, n_int = _interval_cells(traj_gt, gt, width_m)
-    nA = int(gt.a_clean.sum())
+    A = gt.a_clean if mask is None else mask
+    nA = int(A.sum())
     sample_times = np.asarray(sample_times, float)
     if nA == 0:
         return np.full(len(sample_times), np.nan)
@@ -219,7 +239,7 @@ def swept_curve(traj_gt: np.ndarray, t: np.ndarray, gt: GtGrid, width_m: float,
         cell = keys % HW
         uc, idx = np.unique(cell, return_index=True)   # first occurrence = smallest k
         first_k[uc] = k[idx]
-    fk = first_k[(first_k >= 0) & gt.a_clean.reshape(-1)]
+    fk = first_k[(first_k >= 0) & A.reshape(-1)]
     cum = np.cumsum(np.bincount(fk, minlength=max(n_int, 1)))[:max(n_int, 1)] if n_int else \
         np.zeros(1, np.int64)
     out = np.zeros(len(sample_times))
@@ -231,23 +251,32 @@ def swept_curve(traj_gt: np.ndarray, t: np.ndarray, gt: GtGrid, width_m: float,
 
 
 def cleaning_keys(swept, visits, gt: GtGrid, episode_sim_sec: float, distance_gt_m: float,
-                  width_m: float, v_ref: float = V_REF) -> dict:
+                  width_m: float, v_ref: float = V_REF, reach=None) -> dict:
+    """Headline keys use the reachable area (reach_mask); *_aclean keys use a_clean."""
     res2 = gt.res ** 2
-    nA = int(gt.a_clean.sum())
-    sw = swept & gt.a_clean
-    n_sw = int(sw.sum())
-    cov = 100.0 * n_sw / nA if nA else None
-    swept_m2 = n_sw * res2
-    overlap = float(visits[sw].astype(np.int64).sum()) / n_sw if n_sw else None
-    out = dict(coverage_cleaned_pct=cov, swept_area_m2=swept_m2,
-               missed_area_m2=(nA - n_sw) * res2, overlap_ratio=overlap,
-               redundancy_pct=None if overlap is None else 100.0 * (overlap - 1.0),
-               cleaned_m2_per_min=swept_m2 / (episode_sim_sec / 60.0) if episode_sim_sec else None,
-               cleaned_m2_per_m=swept_m2 / distance_gt_m if distance_gt_m else None)
-    out['cleaning_efficiency'] = None if cov is None or overlap is None else (cov / 100.0) / overlap
-    ref_time = nA * res2 / (width_m * v_ref)
-    out['cleaning_efficiency_time'] = (None if cov is None or not episode_sim_sec else
-                                       (cov / 100.0) / (episode_sim_sec / ref_time))
+    reach = reach_mask(gt) if reach is None else reach
+    out = {}
+    for suffix, A in (('', reach), ('_aclean', gt.a_clean)):
+        nA = int(A.sum())
+        sw = swept & A
+        n_sw = int(sw.sum())
+        cov = 100.0 * n_sw / nA if nA else None
+        overlap = float(visits[sw].astype(np.int64).sum()) / n_sw if n_sw else None
+        out['coverage_cleaned%s_pct' % suffix] = cov
+        out['missed_area%s_m2' % suffix] = (nA - n_sw) * res2
+        out['cleaning_efficiency' + suffix] = (None if cov is None or overlap is None
+                                               else (cov / 100.0) / overlap)
+        if suffix == '':
+            swept_m2 = n_sw * res2
+            out.update(swept_area_m2=swept_m2, overlap_ratio=overlap,
+                       redundancy_pct=None if overlap is None else 100.0 * (overlap - 1.0),
+                       cleaned_m2_per_min=(swept_m2 / (episode_sim_sec / 60.0)
+                                           if episode_sim_sec else None),
+                       cleaned_m2_per_m=swept_m2 / distance_gt_m if distance_gt_m else None)
+            ref_time = nA * res2 / (width_m * v_ref) if nA else 0.0
+            out['cleaning_efficiency_time'] = (
+                None if cov is None or not episode_sim_sec or not ref_time else
+                (cov / 100.0) / (episode_sim_sec / ref_time))
     return out
 
 
@@ -295,8 +324,10 @@ def _final_map(run: Run):
 
 
 COVERAGE_KEYS = (
-    ['coverage_explored_pct', 'missed_explored_m2', 'map_completeness_pct',
-     'map_completeness_aligned_pct', 'map_free_recall_pct', 'map_free_precision_pct',
+    ['coverage_explored_pct', 'missed_explored_m2', 'coverage_explored_aclean_pct',
+     'missed_explored_aclean_m2', 'coverage_cleaned_aclean_pct', 'missed_area_aclean_m2',
+     'cleaning_efficiency_aclean', 'map_completeness_pct',
+     'map_completeness_aligned_pct', 'map_completeness_aligned_diag_pct', 'map_free_recall_pct', 'map_free_precision_pct',
      'map_occ_recall_pct', 'map_occ_precision_pct', 'map_iou_free_pct', 'map_iou_occ_pct',
      'map_align_dx_m', 'map_align_dy_m', 'map_align_dyaw_deg', 'coverage_explored_auc',
      'coverage_cleaned_auc', 'coverage_cleaned_pct', 'swept_area_m2', 'missed_area_m2',
@@ -321,6 +352,9 @@ def compute_coverage(run: Run, gt: GtGrid, write_outputs: bool = True) -> dict:
     t0, t1 = float(run.episode_start_t), float(run.episode_end_t)
     T = max(t1 - t0, 0.0)
 
+    reach = reach_mask(gt)
+    notes.append('coverage_*_pct headline uses the reachable area (a_reach/navigable dilated by '
+                 'r_inscribed, within a_clean); *_aclean_* keys use all of a_clean')
     # --- explored / completeness
     fm = _final_map(run)
     snaps = _load_snapshots(run)
@@ -329,9 +363,12 @@ def compute_coverage(run: Run, gt: GtGrid, write_outputs: bool = True) -> dict:
         notes.append('no final map')
     else:
         sampled_final = sample_map(fm, gt, tw)
-        out['coverage_explored_pct'] = coverage_explored(sampled_final, gt)
-        out['missed_explored_m2'] = (int(gt.a_clean.sum()) -
-                                     int((gt.a_clean & (sampled_final == 0)).sum())) * gt.res ** 2
+        out['coverage_explored_pct'] = coverage_explored(sampled_final, gt, reach)
+        out['coverage_explored_aclean_pct'] = coverage_explored(sampled_final, gt)
+        out['missed_explored_m2'] = (int(reach.sum()) -
+                                     int((reach & (sampled_final == 0)).sum())) * gt.res ** 2
+        out['missed_explored_aclean_m2'] = (int(gt.a_clean.sum()) -
+                                            int((gt.a_clean & (sampled_final == 0)).sum())) * gt.res ** 2
         c = completeness(sampled_final, gt)
         out['map_completeness_pct'] = _pct(c['headline'])
         out['map_free_recall_pct'] = _pct(c['free_recall'])
@@ -342,7 +379,12 @@ def compute_coverage(run: Run, gt: GtGrid, write_outputs: bool = True) -> dict:
         out['map_iou_occ_pct'] = _pct(c['iou_occ'])
         dx, dy, dyaw, s_al = alignment_search(fm, gt, tw)
         out['map_align_dx_m'], out['map_align_dy_m'], out['map_align_dyaw_deg'] = dx, dy, dyaw
-        out['map_completeness_aligned_pct'] = _pct(completeness(s_al, gt)['headline'])
+        out['map_completeness_aligned_pct'] = _pct(completeness(s_al, gt)['headline'])  # deprecated
+        out['map_completeness_aligned_diag_pct'] = out['map_completeness_aligned_pct']
+        notes.append('map_completeness_aligned_diag_pct is a diagnostic only: the alignment '
+                     '(shift/yaw) is optimised over the scored map, so it is optimistic; the '
+                     'headline map_completeness_pct uses the fixed spawn transform. '
+                     'map_completeness_aligned_pct is a deprecated alias.')
         if math.hypot(dx, dy) > 0.20 or abs(dyaw) > 3.0:
             notes.append('map frame offset vs spawn pose exceeds tolerance')
 
@@ -362,15 +404,15 @@ def compute_coverage(run: Run, gt: GtGrid, write_outputs: bool = True) -> dict:
     if tr is not None:
         dist = float(np.hypot(np.diff(tr[:, 0]), np.diff(tr[:, 1])).sum())
         sw, vis = swept_grid(tr, tr_t, gt, width)
-        out.update(cleaning_keys(sw, vis, gt, T, dist, width))
-        cur_c = swept_curve(tr, tr_t, gt, width, tr_t)
+        out.update(cleaning_keys(sw, vis, gt, T, dist, width, reach=reach))
+        cur_c = swept_curve(tr, tr_t, gt, width, tr_t, reach)
         tq = tr_t - t0
         for p in (50, 80, 95):
             out['t_to_%d_cleaned_s' % p] = _first_reach(tq, cur_c, p)
         out['coverage_cleaned_auc'] = _auc(tq, cur_c, T)
 
     # --- explored curve + curve csv
-    pts = [(t - t0, coverage_explored(sample_map(m, gt, tw), gt)) for t, m in snaps if t >= t0]
+    pts = [(t - t0, coverage_explored(sample_map(m, gt, tw), gt, reach)) for t, m in snaps if t >= t0]
     if fm is not None:
         pts.append((T, out['coverage_explored_pct']))
     if pts:
@@ -384,7 +426,7 @@ def compute_coverage(run: Run, gt: GtGrid, write_outputs: bool = True) -> dict:
 
     if write_outputs and run.run_dir and os.path.isdir(run.run_dir) and pts:
         te = np.array([p[0] for p in pts])
-        cc = (swept_curve(tr, tr_t, gt, width, te + t0) if tr is not None
+        cc = (swept_curve(tr, tr_t, gt, width, te + t0, reach) if tr is not None
               else [None] * len(te))
         write_csv(os.path.join(run.run_dir, 'coverage_curve.csv'),
                   ['t_ep', 'coverage_explored_pct', 'coverage_cleaned_pct'],

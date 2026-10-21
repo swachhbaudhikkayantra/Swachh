@@ -1,0 +1,13 @@
+# Dev tuning campaign. Estimated wall time: 300 s sim ~ 11 min/episode at RTF 0.45 (45 min per 20-min-sim episode, linear).
+# Est: 300 s sim ~ 11 min/episode (45 min per 20-min-sim episode, linear; RTF ~0.45).
+# 3 worlds x 2 methods x 5 seeds = 30 episodes ~ 5.5 h.
+experiment: dev_tuning
+split: dev
+worlds: [apartment, empty_room, cluttered_room]
+methods: [frontier, scripted_goals]
+seeds: [1, 2, 3, 4, 5]
+odom_noise: [0]
+nav_maps: [gt]
+goal_lists: [fixed]
+timeout_sim_sec: 300
+headless: 1

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Step-response test node (spec 07 section 7.4). Writes responsiveness_events.csv."""
 import csv
+import time
 
 import rclpy
 from geometry_msgs.msg import Twist
@@ -59,6 +60,7 @@ class ResponsivenessTest(Node):
         self.i = 0
         self.state = 'settle'
         self.t_a = None
+        self.wall_a = None
         self.t_run = None
         self.cur = None
         self.create_timer(0.1, self.tick)
@@ -84,18 +86,23 @@ class ResponsivenessTest(Node):
         elif self.state == 'wait_onset' and t > self.t_a:
             trial, variant, d = self.cur
             if onset_reached(variant, vx, wz, self.v, self.wz):
-                self.record(trial, variant, 'cmd_motion', self.t_a, t)
+                self.record(trial, variant, 'cmd_motion', self.t_a, t, time.time())
                 self.t_run = t
                 self.state = 'run'
         elif self.state == 'wait_stop' and t > self.t_a:
             if is_still(vx, wz):
-                self.record(self.cur[0], self.cur[1], 'stop', self.t_a, t)
+                self.record(self.cur[0], self.cur[1], 'stop', self.t_a, t, time.time())
                 self.next_trial()
 
-    def record(self, trial, variant, event, t_a, t_b):
+    def record(self, trial, variant, event, t_a, t_b, wall_b=None):
         L = latency(t_a, t_b)
+        wa = self.wall_a
+        wl = None if (wall_b is None or wa is None) else wall_b - wa
         self.rows.append([trial, variant, event, f'{t_a:.4f}',
-                          '' if t_b is None else f'{t_b:.4f}', '' if L is None else f'{L:.4f}'])
+                          '' if t_b is None else f'{t_b:.4f}', '' if L is None else f'{L:.4f}',
+                          '' if wa is None else f'{wa:.4f}',
+                          '' if wall_b is None else f'{wall_b:.4f}',
+                          '' if wl is None else f'{wl:.4f}'])
 
     def next_trial(self):
         self.i += 1
@@ -113,6 +120,7 @@ class ResponsivenessTest(Node):
                 _, variant, d = self.cur
                 self.cmd = self.twist(d * self.v, 0.0) if variant == 'fwd' else self.twist(0.0, self.wz)
                 self.t_a = self.now()
+                self.wall_a = time.time()
                 self.cmd_pub.publish(self.cmd)
                 self.state = 'wait_onset'
         elif self.state == 'wait_onset':
@@ -125,6 +133,7 @@ class ResponsivenessTest(Node):
             self.cmd_pub.publish(self.cmd)  # 10 Hz keepalive vs cmd_vel_timeout
             if t - self.t_run >= self.run_s:
                 self.t_a = self.now()
+                self.wall_a = time.time()
                 self.cmd_pub.publish(self.twist(0.0, 0.0))
                 self.state = 'wait_stop'
         elif self.state == 'wait_stop':
@@ -136,7 +145,8 @@ class ResponsivenessTest(Node):
     def finish(self):
         with open(self.out, 'w', newline='') as f:
             w = csv.writer(f)
-            w.writerow(['trial', 'variant', 'event', 't_a', 't_b', 'latency_s'])
+            w.writerow(['trial', 'variant', 'event', 't_a', 't_b', 'latency_s',
+                        'wall_t_a', 'wall_t_b', 'wall_latency_s'])
             w.writerows(self.rows)
         self.done_pub.publish(Bool(data=True))
         self.state = 'finished'

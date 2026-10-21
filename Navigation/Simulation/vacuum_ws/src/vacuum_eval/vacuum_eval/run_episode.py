@@ -150,6 +150,12 @@ def gate_map():
                '--qos-reliability reliable --field info', 20)[0] == 0
 
 
+def gate_rtabmap_alive():
+    """>=3 /rtabmap/info messages within 30 wall s (identity map->odom passes G4 even if dead)."""
+    _, o = ros('timeout 30 ros2 topic echo /rtabmap/info --field header.stamp.sec', 35)
+    return sum(1 for ln in o.splitlines() if ln.strip().isdigit()) >= 3
+
+
 def wait_gate(name, fn, budget, run_dir):
     t_end = time.time() + budget
     while time.time() < t_end:
@@ -294,12 +300,27 @@ def dynamic_models(ent):
     return list((ent.get('dynamic_obstacles') or {}).keys())
 
 
+def _loc_mode(a):
+    """Effective localization source: slam (RTAB-Map), amcl or gt (perfect)."""
+    loc = getattr(a, 'localization', 'auto') or 'auto'
+    if loc == 'auto':
+        return 'amcl' if a.nav_map == 'gt' else 'rtabmap'
+    if loc == 'slam':
+        return 'rtabmap'
+    if loc == 'gt' and a.nav_map != 'gt':
+        raise SystemExit('--localization gt requires --nav-map gt')
+    if loc == 'amcl' and a.nav_map != 'gt':
+        raise SystemExit('--localization amcl requires --nav-map gt')
+    return loc
+
+
 def meta_extras(a, ent, spawn, goal_list=None):
     ex = {}
     if a.method == 'scripted_goals':
         gt_mode = a.nav_map == 'gt'
+        loc = _loc_mode(a)
         ex.update(goal_list=goal_list, nav_map=a.nav_map,
-                  localization_mode='amcl' if gt_mode else 'rtabmap',
+                  localization_mode=loc,
                   t_world_map=[0.0, 0.0, 0.0] if gt_mode else [float(v) for v in spawn])
         if ent.get('dynamic_obstacles'):
             ex['dynamic_obstacles'] = {k: {'size': list(v.get('size', [0.4, 0.4]))}
@@ -328,7 +349,23 @@ def method_plan(a, ent, spawn, run_dir, sdf=None, bridge_cfg=None, goals_file=No
         plan['extra_models'] = dyn
         plan['stack'].append(ProcessSpec(
             'sim', sim_cmd(a, spawn, sdf, bridge_cfg if dyn else None)))
-        if a.nav_map == 'slam':
+        loc = _loc_mode(a)
+        if loc == 'gt':
+            # AMCL cannot be disabled via nav2_localization.launch.py args: plain nav2 + map_server
+            plan['stack'].append(ProcessSpec(
+                'nav2', 'ros2 launch vacuum_nav2 nav2.launch.py use_sim_time:=true', delay_s=12.0))
+            plan['stack'].append(ProcessSpec(
+                'map_server',
+                "bash -c 'ros2 run nav2_map_server map_server --ros-args -p yaml_filename:=%s/gt_map.yaml "
+                "-p use_sim_time:=true & sleep 3; ros2 lifecycle set /map_server configure; "
+                "ros2 lifecycle set /map_server activate; wait'" % run_dir, delay_s=14.0))
+            plan['stack'].append(ProcessSpec(
+                'gt_localization',
+                'ros2 run vacuum_eval gt_localization_node --ros-args -p use_sim_time:=true',
+                delay_s=12.0))
+            plan['gates'] = ['G5_nav', 'G4_tf', 'G6_map_server']
+            twm = [0.0, 0.0, 0.0]
+        elif a.nav_map == 'slam':
             env = a.world if a.world in SLAM_ENVS else 'room'
             plan['stack'].append(ProcessSpec(
                 'slam', 'ros2 launch vacuum_slam slam.launch.py use_sim_time:=true use_rviz:=false '
@@ -386,7 +423,7 @@ def gate_map_server():
 
 
 GATES = {'G4_tf': gate_tf, 'G5_nav': gate_nav, 'G6_map': gate_map,
-         'G6_map_server': gate_map_server}
+         'G6_map_server': gate_map_server, 'G7_rtabmap_alive': gate_rtabmap_alive}
 
 
 def bridge_config_path():
@@ -413,6 +450,7 @@ def tail_events(run_dir):
 def monitor(run_dir, procs, timeout, meta_t=None):
     """Return end_reason. Wall 1 Hz poll; timeout/stuck from trajectory.csv; finish from events.csv."""
     stop = {'sig': False}
+    t_mon, n_rows, t_grow, stalled = time.time(), -1, time.time(), False
     old = signal.signal(signal.SIGINT, lambda *_: stop.__setitem__('sig', True))
     try:
         while True:
@@ -423,6 +461,18 @@ def monitor(run_dir, procs, timeout, meta_t=None):
                 if p.critical and not p.alive():
                     event(run_dir, 'process_exited', p.name)
                     return 'crash'
+            lp = os.path.join(run_dir, 'loop_events.csv')
+            try:
+                with open(lp) as f:
+                    nr = sum(1 for _ in f)
+            except OSError:
+                nr = 0
+            if nr != n_rows:
+                n_rows, t_grow = nr, time.time()
+                stalled = False
+            elif not stalled and time.time() - t_grow >= 20 and time.time() - t_mon >= 20:
+                stalled = True
+                event(run_dir, 'rtabmap_stalled', 'loop_events.csv not growing for 20 s')
             names, det = tail_events(run_dir)
             if 'finished_signal' in names:
                 i = names.index('finished_signal')
@@ -509,6 +559,11 @@ def finish(run_dir, reason, wall0, failed_note=None):
         out['status'] = 'failed'
     cm.write_summary(run_dir, out)
     print('%s %s %s %s' % (run_dir, out['status'], out['end_reason'], out['episode_sim_sec']))
+    print('VALIDITY: %s img_drop_pct=%s rtabmap_updates=%s max_gap_s=%s%s' % (
+        'VALID' if out.get('episode_valid') else 'INVALID' if out.get('episode_valid') is False
+        else 'UNKNOWN', out.get('img_drop_pct'), out.get('rtabmap_updates'),
+        out.get('rtabmap_max_gap_s'),
+        ' reasons=' + '; '.join(out.get('invalid_reasons') or []) if out.get('invalid_reasons') else ''))
     return out
 
 
@@ -580,7 +635,7 @@ def run_one(a):
         if ok:
             ev = Proc('eval_stack', eval_cmd(run_dir, plan['extra_models']), run_dir)
             t_budget = time.time() + 240
-            for n in plan['gates']:
+            for n in plan['gates'] + (['G7_rtabmap_alive'] if 'G6_map' in plan['gates'] else []):
                 if n == 'initialpose':
                     ros(initialpose_cmd(spawn), 30)
                     event(run_dir, 'amcl_initial_pose_sent', '%.3f %.3f %.3f' % spawn)
@@ -612,6 +667,9 @@ def build_parser():
     ap.add_argument('--method', default='frontier', choices=['frontier', 'scripted_goals', 'responsiveness'])
     ap.add_argument('--stack', choices=['bare', 'loaded'], default='bare')
     ap.add_argument('--nav-map', choices=['gt', 'slam'], default='gt')
+    ap.add_argument('--localization', choices=['auto', 'slam', 'amcl', 'gt'], default='auto',
+                    help='scripted_goals localization source (auto = slam for --nav-map slam, '
+                         'amcl for gt)')
     ap.add_argument('--goal-list', choices=list(GOAL_LISTS), default=None,
                     help='scripted_goals; default: scenario for avoid_* worlds else fixed')
     ap.add_argument('--seed', type=int, required=True)

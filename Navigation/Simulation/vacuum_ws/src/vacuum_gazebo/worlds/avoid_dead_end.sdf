@@ -23,35 +23,35 @@
     <model name="ground_plane"><static>true</static><link name="link">
       <collision name="c"><geometry><plane><normal>0 0 1</normal><size>20 20</size></plane></geometry></collision>
       <visual name="v"><geometry><plane><normal>0 0 1</normal><size>20 20</size></plane></geometry>
-      <material><ambient>0.7 0.7 0.7 1</ambient><diffuse>0.7 0.7 0.7 1</diffuse></material></visual>
+      <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse><pbr><metal><albedo_map>textures/floor_1.png</albedo_map><roughness>1.0</roughness><metalness>0.0</metalness></metal></pbr></material></visual>
     </link></model>
     <model name="wall_n"><static>true</static><pose>0 2.05 0.5 0 0 0</pose><link name="link">
       <collision name="c"><geometry><box><size>6.3 0.1 1.0</size></box></geometry></collision>
-      <visual name="v"><geometry><box><size>6.3 0.1 1.0</size></box></geometry><material><ambient>0.8 0.8 0.75 1</ambient><diffuse>0.8 0.8 0.75 1</diffuse></material></visual>
+      <visual name="v"><geometry><box><size>6.3 0.1 1.0</size></box></geometry><material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse><pbr><metal><albedo_map>textures/wall_01.png</albedo_map><roughness>1.0</roughness><metalness>0.0</metalness></metal></pbr></material></visual>
     </link></model>
     <model name="wall_s"><static>true</static><pose>0 -2.05 0.5 0 0 0</pose><link name="link">
       <collision name="c"><geometry><box><size>6.3 0.1 1.0</size></box></geometry></collision>
-      <visual name="v"><geometry><box><size>6.3 0.1 1.0</size></box></geometry><material><ambient>0.8 0.8 0.75 1</ambient><diffuse>0.8 0.8 0.75 1</diffuse></material></visual>
+      <visual name="v"><geometry><box><size>6.3 0.1 1.0</size></box></geometry><material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse><pbr><metal><albedo_map>textures/wall_06.png</albedo_map><roughness>1.0</roughness><metalness>0.0</metalness></metal></pbr></material></visual>
     </link></model>
     <model name="wall_e"><static>true</static><pose>3.05 0 0.5 0 0 0</pose><link name="link">
       <collision name="c"><geometry><box><size>0.1 4.0 1.0</size></box></geometry></collision>
-      <visual name="v"><geometry><box><size>0.1 4.0 1.0</size></box></geometry><material><ambient>0.8 0.8 0.75 1</ambient><diffuse>0.8 0.8 0.75 1</diffuse></material></visual>
+      <visual name="v"><geometry><box><size>0.1 4.0 1.0</size></box></geometry><material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse><pbr><metal><albedo_map>textures/wall_11.png</albedo_map><roughness>1.0</roughness><metalness>0.0</metalness></metal></pbr></material></visual>
     </link></model>
     <model name="wall_w"><static>true</static><pose>-3.05 0 0.5 0 0 0</pose><link name="link">
       <collision name="c"><geometry><box><size>0.1 4.0 1.0</size></box></geometry></collision>
-      <visual name="v"><geometry><box><size>0.1 4.0 1.0</size></box></geometry><material><ambient>0.8 0.8 0.75 1</ambient><diffuse>0.8 0.8 0.75 1</diffuse></material></visual>
+      <visual name="v"><geometry><box><size>0.1 4.0 1.0</size></box></geometry><material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse><pbr><metal><albedo_map>textures/wall_04.png</albedo_map><roughness>1.0</roughness><metalness>0.0</metalness></metal></pbr></material></visual>
     </link></model>
     <model name="wall_a1"><static>true</static><pose>-2.7 0 0.5 0 0 0</pose><link name="link">
       <collision name="c"><geometry><box><size>0.6 0.1 1.0</size></box></geometry></collision>
-      <visual name="v"><geometry><box><size>0.6 0.1 1.0</size></box></geometry><material><ambient>0.8 0.8 0.75 1</ambient><diffuse>0.8 0.8 0.75 1</diffuse></material></visual>
+      <visual name="v"><geometry><box><size>0.6 0.1 1.0</size></box></geometry><material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse><pbr><metal><albedo_map>textures/wall_05.png</albedo_map><roughness>1.0</roughness><metalness>0.0</metalness></metal></pbr></material></visual>
     </link></model>
     <model name="wall_a2"><static>true</static><pose>-0.1 0 0.5 0 0 0</pose><link name="link">
       <collision name="c"><geometry><box><size>3.0 0.1 1.0</size></box></geometry></collision>
-      <visual name="v"><geometry><box><size>3.0 0.1 1.0</size></box></geometry><material><ambient>0.8 0.8 0.75 1</ambient><diffuse>0.8 0.8 0.75 1</diffuse></material></visual>
+      <visual name="v"><geometry><box><size>3.0 0.1 1.0</size></box></geometry><material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse><pbr><metal><albedo_map>textures/wall_06.png</albedo_map><roughness>1.0</roughness><metalness>0.0</metalness></metal></pbr></material></visual>
     </link></model>
     <model name="wall_pocket"><static>true</static><pose>-0.9 1.0 0.5 0 0 0</pose><link name="link">
       <collision name="c"><geometry><box><size>0.1 2.0 1.0</size></box></geometry></collision>
-      <visual name="v"><geometry><box><size>0.1 2.0 1.0</size></box></geometry><material><ambient>0.8 0.8 0.75 1</ambient><diffuse>0.8 0.8 0.75 1</diffuse></material></visual>
+      <visual name="v"><geometry><box><size>0.1 2.0 1.0</size></box></geometry><material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse><pbr><metal><albedo_map>textures/wall_07.png</albedo_map><roughness>1.0</roughness><metalness>0.0</metalness></metal></pbr></material></visual>
     </link></model>
   </world>
 </sdf>

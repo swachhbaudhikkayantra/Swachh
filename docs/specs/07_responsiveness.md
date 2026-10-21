@@ -78,3 +78,25 @@ In normal exploration/navigation runs only `goal_motion` (and `obstacle` if a dy
 | 2026-10-20 | Truth for motion onset = ground truth velocity, not `/odom` | Odometry is derived from the same controller and lags it |
 | 2026-10-20 | Per-event deadlines 0.5/0.5/2.0/1.0 s | 0.5 s accepted by the user; navigation start involves planning so 0.5 s is unreachable; flagged for user review |
 | 2026-10-20 | Topic-rate health reported separately from the headline % | Different nature (continuous health, not discrete reactions) |
+
+
+## Decision 2026-10-21: responsiveness is wall-clock controller latency
+
+Council + critic review found the old step-test metric (sim-time latency from command to
+ground-truth response) was nearly guaranteed to pass: the controller's acceleration ramp
+bounds onset time by construction, and measuring in sim time at RTF ~0.35 distorts the
+latency (sim ms do not map to real ms). It therefore said little about real responsiveness.
+
+New primary definition (`resp_definition: wall_clock_controller_latency`): per event, the
+WALL-clock time from the command being published to the first ground-truth motion response.
+`responsiveness_test.py` records `wall_t_a`, `wall_t_b`, `wall_latency_s` (appended to
+`responsiveness_events.csv`); `trajectory.csv` and `cmd_vel.csv` gain a trailing `wall_t`.
+
+- `lat_cmd_motion_ms_mean/p95` and `lat_stop_ms_mean/p95` use `wall_latency_s`; the
+  deadline-pct keys (`resp_cmd_pct`, `resp_stop_pct`, `responsiveness_pct`) use it too.
+  Missing column: fall back to sim time and add note `wall-clock stamps missing`.
+- Old sim-time numbers are kept as secondary keys with suffix `_sim`
+  (`lat_cmd_motion_ms_mean_sim`, `..._p95_sim`, `lat_stop_ms_mean_sim`, `..._p95_sim`).
+- Goal-motion and obstacle latencies are unchanged (sim time).
+- Related recorder fix: `est_*` in trajectory.csv is looked up at the GT sample stamp
+  (0.1 s timeout); `est_interp` = 1 if so, 0 if it fell back to latest.

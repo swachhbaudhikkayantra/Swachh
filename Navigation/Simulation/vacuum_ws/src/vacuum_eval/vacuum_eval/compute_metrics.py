@@ -11,11 +11,11 @@ import numpy as np
 import yaml
 
 from vacuum_eval.metrics import (coverage, gt_grid, loop_closure, navigation, resources,
-                                 responsiveness, safety, trajectory)
+                                 responsiveness, safety, trajectory, validity)
 from vacuum_eval.metrics.common import load_run, write_json
 
 MODULE_ORDER = ['resources', 'coverage', 'trajectory', 'navigation', 'safety',
-                'responsiveness', 'loop_closure', 'counters']
+                'responsiveness', 'loop_closure', 'validity', 'counters']
 ALWAYS_KEYS = ['experiment', 'world', 'method', 'seed', 'odom_noise', 'spawn_x', 'spawn_y',
                'spawn_yaw', 'status', 'end_reason', 'episode_sim_sec', 'bringup_sim_sec',
                'wall_elapsed_sec', 'n_cmd_ticks', 'n_goals', 'distance_gt_m', 'notes']
@@ -216,6 +216,19 @@ def _need_gt(ctx):
     return ctx['gt']
 
 
+def _lc_kwargs(run):
+    """Loop-closure tolerances from the run's frozen config_snapshot, else eval_defaults.yaml."""
+    cfg = (run.meta or {}).get('config_snapshot') or {}
+    if not cfg:
+        p = os.path.join(_config_dir(), 'eval_defaults.yaml')
+        if os.path.exists(p):
+            with open(p) as f:
+                cfg = yaml.safe_load(f) or {}
+    names = {'pos_tol_m': 'lc_pos_tol_m', 'yaw_tol_deg': 'lc_yaw_tol_deg',
+             'reg_trans_tol_m': 'lc_reg_trans_tol_m', 'reg_rot_tol_deg': 'lc_reg_rot_tol_deg'}
+    return {arg: float(cfg[key]) for arg, key in names.items() if key in cfg}
+
+
 MODULES = {
     'resources': lambda c: resources.compute_resource_metrics(c['run']),
     'coverage': lambda c: coverage.compute_coverage(c['run'], _need_gt(c)),
@@ -223,7 +236,9 @@ MODULES = {
     'navigation': lambda c: navigation.compute_navigation_metrics(c['run'], _need_gt(c)),
     'safety': lambda c: safety.compute_safety_metrics(c['run'], _need_gt(c), c['worlds_cfg']),
     'responsiveness': lambda c: responsiveness.compute_responsiveness_metrics(c['run']),
-    'loop_closure': lambda c: loop_closure.compute_loop_closure_metrics(c['run']),
+    'loop_closure': lambda c: loop_closure.compute_loop_closure_metrics(c['run'],
+                                                                         **_lc_kwargs(c['run'])),
+    'validity': lambda c: validity.compute_validity(c['run']),
     'counters': lambda c: _counters(c['run']),
 }
 
@@ -231,6 +246,7 @@ _KEYS = {
     'resources': lambda: list(resources._BASE_KEYS),
     'coverage': lambda: list(coverage.COVERAGE_KEYS),
     'trajectory': lambda: list(trajectory.SLAM_KEYS) + list(trajectory.ODOM_KEYS),
+    'validity': lambda: list(validity.VALIDITY_KEYS),
     'counters': lambda: ['n_cmd_ticks', 'n_goals', 'distance_gt_m'],
 }
 
@@ -276,6 +292,10 @@ def compute(run_dir, only=None, gt_dir=None, worlds_cfg=None):
         base[k] = summary.get(k)
     out = dict(summary)
     out.update(base)
+    if info['has_start'] and 'validity' in names and out.get('episode_valid') is False:
+        if out['status'] in ('ok', 'partial'):
+            out['status'] = 'invalid'
+        notes.append('episode invalid: ' + '; '.join(out.get('invalid_reasons') or []))
     out['notes'] = notes
     return out
 

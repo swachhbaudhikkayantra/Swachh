@@ -1,0 +1,11 @@
+# FROZEN test campaign. Est: up to 1200 s sim ~ 45 min/episode. 5 worlds x 10 seeds x 2 goal lists = 100 episodes ~ 75 h upper bound.
+experiment: final_navigation
+split: test
+worlds: [office, corridor, two_rooms_door, multi_room_loop, maze_dead_ends]
+methods: [scripted_goals]
+nav_maps: [gt]
+goal_lists: [random20, long_range]
+seeds: [101, 102, 103, 104, 105, 106, 107, 108, 109, 110]
+odom_noise: [0]
+timeout_sim_sec: 1200
+headless: 1

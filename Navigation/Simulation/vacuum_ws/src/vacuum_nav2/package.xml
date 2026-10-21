@@ -29,6 +29,7 @@
 
   <!-- Depth image to laser scan for local costmap -->
   <exec_depend>depthimage_to_laserscan</exec_depend>
+  <exec_depend>spatio_temporal_voxel_layer</exec_depend>
 
   <export>
     <build_type>ament_cmake</build_type>

@@ -26,7 +26,7 @@
     </Discovery>
     <Internal>
       <!-- Raise socket buffer limits for large point cloud transfers -->
-      <SocketReceiveBufferSize min="0B" max="2MB"/>
+      <SocketReceiveBufferSize min="16MB" max="32MB"/>
     </Internal>
   </Domain>
 </CycloneDDS>

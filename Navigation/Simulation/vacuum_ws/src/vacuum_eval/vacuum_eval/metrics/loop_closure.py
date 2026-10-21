@@ -7,9 +7,32 @@ import numpy as np
 
 from .common import Run, wrap_angle
 
-LC_POS_TOL_M = 1.0
-LC_YAW_TOL_DEG = 60.0
+LC_POS_TOL_M = 0.30       # default truth tolerances (eval_defaults lc_pos_tol_m / lc_yaw_tol_deg)
+LC_YAW_TOL_DEG = 30.0
+LC_POS_TOL_LOOSE_M = 1.0  # old tolerances, reported as *_loose only
+LC_YAW_TOL_LOOSE_DEG = 60.0
 LC_MIN_TIME_GAP_S = 30.0
+LC_REG_TRANS_TOL_M = 0.10  # headline truth: RTAB-Map transform vs GT relative transform
+LC_REG_ROT_TOL_DEG = 5.0
+# Revisit (recall) stays position-based: a place where a closure was possible.
+LC_REVISIT_POS_M = 1.0
+LC_REVISIT_YAW_DEG = 60.0
+
+
+def rel_se2(pa, pb):
+    """SE(2) pose of b expressed in a's frame (inv(Pa) * Pb); p = (t, x, y, yaw)."""
+    dx, dy = pb[1] - pa[1], pb[2] - pa[2]
+    c, s = math.cos(pa[3]), math.sin(pa[3])
+    return c * dx + s * dy, -s * dx + c * dy, wrap_angle(pb[3] - pa[3])
+
+
+def _reg_correct(pa, pb, tf, trans_tol, rot_tol) -> bool:
+    """tf = (tx, ty, tyaw) from ref (pa) to loop node (pb), pose_b = pose_a * T."""
+    if any(math.isnan(v) for v in pa[1:] + pb[1:] + tuple(tf)):
+        return False
+    gx, gy, gyaw = rel_se2(pa, pb)
+    return (math.hypot(gx - tf[0], gy - tf[1]) <= trans_tol
+            and abs(wrap_angle(gyaw - tf[2])) <= rot_tol)
 
 
 def node_poses(rows) -> Dict[int, Tuple[float, float, float, float]]:
@@ -55,10 +78,15 @@ def revisit_episodes(nodes, pos_tol, yaw_tol, min_gap_s) -> List[Set[int]]:
     return episodes
 
 
-def compute_loop_closure_metrics(run: Run) -> dict:
+def compute_loop_closure_metrics(run: Run, pos_tol_m: float = LC_POS_TOL_M,
+                                 yaw_tol_deg: float = LC_YAW_TOL_DEG,
+                                 reg_trans_tol_m: float = LC_REG_TRANS_TOL_M,
+                                 reg_rot_tol_deg: float = LC_REG_ROT_TOL_DEG) -> dict:
     keys = ['lc_n_info_msgs', 'lc_n_nodes', 'lc_n_accepted', 'lc_n_true', 'lc_n_false',
             'lc_n_revisits', 'lc_n_revisits_detected', 'lc_precision_pct', 'lc_recall_pct',
-            'lc_f1_pct', 'n_proximity_links', 'lc_per_100m']
+            'lc_f1_pct', 'n_proximity_links', 'lc_per_100m',
+            'lc_n_true_loose', 'lc_n_false_loose', 'lc_precision_loose_pct',
+            'lc_precision_samepose_pct', 'lc_n_true_samepose']
     out = {k: None for k in keys}
     notes: List[str] = []
     out['notes'] = notes
@@ -71,7 +99,7 @@ def compute_loop_closure_metrics(run: Run) -> dict:
     rows = {k: v[win] for k, v in le.items()}
     all_nodes = node_poses(le)       # lookup includes nodes created before the window
     nodes = {r: p for r, p in node_poses(rows).items()}
-    pos_tol, yaw_tol = LC_POS_TOL_M, math.radians(LC_YAW_TOL_DEG)
+    pos_tol, yaw_tol = pos_tol_m, math.radians(yaw_tol_deg)
 
     out['lc_n_info_msgs'] = int(win.sum())
     out['lc_n_nodes'] = len(nodes)
@@ -81,16 +109,45 @@ def compute_loop_closure_metrics(run: Run) -> dict:
     acc = set()
     for a, b in zip(ref[lc_id > 0], lc_id[lc_id > 0]):
         acc.add((int(a), int(b)))
+    tfs = {}
+    if all(k in rows for k in ('lc_tx', 'lc_ty', 'lc_tyaw')):
+        for k in range(len(ref)):
+            if lc_id[k] > 0:
+                v = (float(rows['lc_tx'][k]), float(rows['lc_ty'][k]), float(rows['lc_tyaw'][k]))
+                if not any(math.isnan(x) for x in v):
+                    tfs.setdefault((int(ref[k]), int(lc_id[k])), v)
+    same = {(a, b) for a, b in acc if a in all_nodes and b in all_nodes
+            and _close(all_nodes[a], all_nodes[b], pos_tol, yaw_tol)}
+    out['lc_n_true_samepose'] = len(same)
+    out['lc_precision_samepose_pct'] = 100.0 * len(same) / len(acc) if acc else None
     true_pairs = set()
+    n_fallback = 0
     for a, b in acc:
-        if a in all_nodes and b in all_nodes and _close(all_nodes[a], all_nodes[b], pos_tol, yaw_tol):
-            true_pairs.add((a, b))
+        if a not in all_nodes or b not in all_nodes:
+            continue
+        if (a, b) in tfs:
+            if _reg_correct(all_nodes[a], all_nodes[b], tfs[(a, b)], reg_trans_tol_m,
+                            math.radians(reg_rot_tol_deg)):
+                true_pairs.add((a, b))
+        else:
+            n_fallback += 1
+            if (a, b) in same:
+                true_pairs.add((a, b))
+    if n_fallback:
+        notes.append('lc truth: %d/%d closures lack lc_tx/ty/tyaw; used position tolerance '
+                     '(%.2f m/%g deg) for them' % (n_fallback, len(acc), pos_tol_m, yaw_tol_deg))
+    loose = sum(1 for a, b in acc if a in all_nodes and b in all_nodes and _close(
+        all_nodes[a], all_nodes[b], LC_POS_TOL_LOOSE_M, math.radians(LC_YAW_TOL_LOOSE_DEG)))
+    out['lc_n_true_loose'] = loose
+    out['lc_n_false_loose'] = len(acc) - loose
+    out['lc_precision_loose_pct'] = 100.0 * loose / len(acc) if acc else None
     out['lc_n_accepted'] = len(acc)
     out['lc_n_true'] = len(true_pairs)
     out['lc_n_false'] = len(acc) - len(true_pairs)
     out['n_proximity_links'] = int(np.sum((prox > 0) & ~(lc_id > 0)))
 
-    eps = revisit_episodes(nodes, pos_tol, yaw_tol, LC_MIN_TIME_GAP_S)
+    eps = revisit_episodes(nodes, LC_REVISIT_POS_M, math.radians(LC_REVISIT_YAW_DEG),
+                           LC_MIN_TIME_GAP_S)
     true_refs = {a for a, _ in true_pairs}
     out['lc_n_revisits'] = len(eps)
     out['lc_n_revisits_detected'] = sum(1 for e in eps if e & true_refs)

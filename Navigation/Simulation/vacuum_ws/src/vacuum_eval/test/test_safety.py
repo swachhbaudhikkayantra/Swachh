@@ -118,3 +118,68 @@ def test_geometry_fallback_and_dynamic():
               episode_end_t=100.0)
     m = compute_safety_metrics(run, gt, cfg)
     assert m['n_collisions'] == 1 and m['n_collision_obstacles'] == 1
+
+
+def test_self_contact_filtered():
+    gt = box_gt()
+    traj = pass_by_traj(y=2.0)
+    raw = {'t': np.array([1.0, 2.0]), 'other_model': np.array(['vacuum_robot', 'vacuum_robot::x'], dtype=object)}
+    run = Run(meta={}, trajectory=traj, episode_start_t=0.0, episode_end_t=100.0, collisions_raw=raw)
+    m = compute_safety_metrics(run, gt, {})
+    assert m['n_collisions'] == 0 and m['geometric_collisions'] == 0
+
+
+def test_geometry_fallback_counts_zero_clearance():
+    gt = box_gt()
+    traj = pass_by_traj(y=5.0 - 0.125 - 0.01)       # grazes the box face
+    run = Run(meta={}, trajectory=traj, episode_start_t=0.0, episode_end_t=100.0)
+    m = compute_safety_metrics(run, gt, {})
+    assert m['min_clearance_m'] > 0 or m['n_collisions'] >= 1
+
+
+def test_row_dt_from_time_column():
+    gt = box_gt()
+    traj = pass_by_traj(y=5.0 - 0.125 - 0.15)
+    traj = {k: v for k, v in traj.items()}
+    traj['t'] = traj['t'] * 2.0                      # 0.2 s rows
+    run = Run(meta={}, trajectory=traj, episode_start_t=0.0, episode_end_t=100.0,
+              collisions_raw={'t': np.array([]), 'other_model': np.array([], dtype=object)})
+    m = compute_safety_metrics(run, gt, {})
+    n_below = m['time_below_020m_s'] / 0.2
+    assert abs(n_below - round(n_below)) < 1e-6 and m['time_below_020m_s'] > 0
+
+
+def test_exact_geometry_used_and_grid_secondary():
+    from vacuum_eval.metrics import geometry
+    gt = box_gt()
+    # box x 5.0..5.4, y 5.0..5.4 as exact shape; robot at y=5.2 moving in x along it
+    gt.shapes = {'box': [dict(kind='box', cx=5.2, cy=5.2, hx=0.2, hy=0.2, yaw=0.0)]}
+    run = Run(trajectory=pass_by_traj(5.2 + 0.2 + HALF_W_T + 0.10, 5.0, 5.2), episode_start_t=0.0,
+              episode_end_t=10.0)
+    m = compute_safety_metrics(run, gt, {})
+    assert m['geometry_source'] == 'exact'
+    assert abs(m['min_clearance_m'] - 0.10) < 1e-9
+    assert 'min_clearance_grid_m' in m and 'geometric_collisions_grid' in m
+    run2 = Run(trajectory=pass_by_traj(5.2 + 0.2 + HALF_W_T - 0.02, 5.0, 5.2), episode_start_t=0.0,
+               episode_end_t=10.0)
+    m2 = compute_safety_metrics(run2, gt, {})
+    assert m2['geometric_collisions'] >= 1 and m2['max_penetration_m'] > 0.0
+
+
+HALF_W_T = 0.125
+
+
+def test_resolve_sdf_share_path():
+    import os
+    from vacuum_eval.compute_metrics import resolve_sdf
+    p = resolve_sdf('<share>/vacuum_gazebo/worlds/apartment.sdf')
+    assert os.path.exists(p) and p.endswith('worlds/apartment.sdf')
+    assert os.path.exists(resolve_sdf('vacuum_gazebo/worlds/apartment.sdf'))
+
+
+def test_cfg_matches_sdf_world_name():
+    from types import SimpleNamespace
+    from vacuum_eval.metrics.safety import _cfg
+    w = {'worlds': {'apartment': {'sdf_file': 'x'}, 'b': {'sdf_file': 'y', 'world_name_in_sdf': 'bb'}}}
+    assert _cfg(w, SimpleNamespace(world_name='apartment_world'))['sdf_file'] == 'x'
+    assert _cfg(w, SimpleNamespace(world_name='bb'))['sdf_file'] == 'y'
