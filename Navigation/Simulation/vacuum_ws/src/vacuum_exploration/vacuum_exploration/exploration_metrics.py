@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.12
+#!/usr/bin/env python3
 """
 exploration_metrics.py  —  Stage 4B: Research Metrics Collector
 ────────────────────────────────────────────────────────────────

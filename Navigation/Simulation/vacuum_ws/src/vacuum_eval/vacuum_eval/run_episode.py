@@ -25,6 +25,7 @@ ROS_ENV = ('source /opt/ros/jazzy/setup.bash; '
            'source ~/Swachh/Navigation/Simulation/vacuum_ws/install/setup.bash; '
            'export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp '
            'CYCLONEDDS_URI=file://$HOME/Swachh/Navigation/cyclone_dds.xml ROS_DOMAIN_ID=0; ')
+_BASE_ROS_ENV = ROS_ENV
 BAG_TOPICS = ('/clock /tf /tf_static /odom /diff_drive_controller/odom /ground_truth/odom_raw '
               '/ground_truth/odom /cmd_vel /cmd_vel_nav /cmd_vel_smoothed '
               '/diff_drive_controller/cmd_vel /rtabmap/map /rtabmap/info /rtabmap/mapGraph '
@@ -32,6 +33,94 @@ BAG_TOPICS = ('/clock /tf /tf_static /odom /diff_drive_controller/odom /ground_t
               '/exploration/finished /navigate_to_pose/_action/status '
               '/navigate_to_pose/_action/feedback /plan /local_plan /scan_from_depth '
               '/joint_states /vacuum_robot/contacts /eval/goal_events /eval/done')
+LEAN_DROP_TOPICS = ('/clock', '/joint_states')
+
+
+def bag_topics(lean=0):
+    t = BAG_TOPICS.split()
+    if lean:
+        t = [x for x in t if x not in LEAN_DROP_TOPICS]
+    return ' '.join(t)
+
+
+def slot_env(slot):
+    """-> (ros_domain_id, gz_partition) for a parallel slot. Slot 0 keeps domain 0."""
+    slot = int(slot or 0)
+    return (10 + slot if slot > 0 else 0), 'vacuum_slot%d' % slot
+
+
+def build_ros_env(slot=0):
+    dom, part = slot_env(slot)
+    base = _BASE_ROS_ENV.replace('ROS_DOMAIN_ID=0;', 'ROS_DOMAIN_ID=%d;' % dom)
+    return base + 'export GZ_PARTITION=%s ROS_LOCALHOST_ONLY=1; ' % part
+
+
+def set_slot(slot):
+    global ROS_ENV
+    ROS_ENV = build_ros_env(slot)
+
+
+def _lock_path(slot, root=None):
+    return os.path.join(os.path.expanduser(root or '~/eval_runs'), '.slot%d.lock' % int(slot))
+
+
+def pid_alive(pid):
+    try:
+        os.kill(int(pid), 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    except (ValueError, OSError):
+        return False
+    return True
+
+
+def acquire_slot_lock(slot, root=None, pid=None, alive=pid_alive):
+    """True if the lock was taken (stale lock with dead PID is replaced)."""
+    path = _lock_path(slot, root)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    try:
+        old = int(open(path).read().strip())
+        if alive(old):
+            return False
+    except (OSError, ValueError):
+        pass
+    tmp = '%s.%d.tmp' % (path, os.getpid())
+    with open(tmp, 'w') as f:
+        f.write(str(pid or os.getpid()))
+    os.replace(tmp, path)
+    return True
+
+
+def release_slot_lock(slot, root=None, pid=None):
+    path = _lock_path(slot, root)
+    try:
+        if int(open(path).read().strip()) == (pid or os.getpid()):
+            os.remove(path)
+    except (OSError, ValueError):
+        pass
+
+
+def pids_with_partition(partition, proc_root='/proc', name_sub='gz'):
+    """PIDs whose environ has GZ_PARTITION=<partition> and whose cmdline contains name_sub."""
+    out = []
+    needle = b'GZ_PARTITION=' + partition.encode()
+    try:
+        entries = os.listdir(proc_root)
+    except OSError:
+        return out
+    for e in entries:
+        if not e.isdigit() or int(e) == os.getpid():
+            continue
+        try:
+            env = open(os.path.join(proc_root, e, 'environ'), 'rb').read().split(b'\0')
+            cmd = open(os.path.join(proc_root, e, 'cmdline'), 'rb').read()
+        except OSError:
+            continue
+        if needle in env and name_sub.encode() in cmd:
+            out.append(int(e))
+    return out
 
 
 def sample_spawn(seed, candidates):
@@ -170,9 +259,13 @@ def wait_gate(name, fn, budget, run_dir):
     return False
 
 
-def preflight(root):
-    if subprocess.run(['pgrep', '-f', 'gz sim'], capture_output=True).stdout.strip():
-        print('stale simulator running (gz sim)', file=sys.stderr)
+def preflight(root, slot=0):
+    if pids_with_partition(slot_env(slot)[1]):
+        print('stale simulator running in slot %d (GZ_PARTITION=%s)' % (slot, slot_env(slot)[1]),
+              file=sys.stderr)
+        return 2
+    if not acquire_slot_lock(slot, root):
+        print('slot %d is locked by a live process' % slot, file=sys.stderr)
         return 2
     try:
         if int(open('/proc/sys/net/core/rmem_max').read()) < 4194304:
@@ -284,8 +377,21 @@ def sim_cmd(a, spawn, sdf=None, extra_bridge=None):
          'spawn_yaw:=%.6f odom_mode:=eval headless:=%s use_rviz:=false %s'
          % ('world_file:=%s' % sdf if sdf else 'world:=%s' % a.world, spawn[0], spawn[1],
             spawn[2], _b(a.headless), _noise_args(a)))
+    if getattr(a, 'lean', 0):
+        c += ' enable_diagnostics:=false'
+    if getattr(a, 'gpu', 0):
+        c += ' render_gpu:=true'
     if extra_bridge:
         c += ' extra_bridge_config:=%s' % extra_bridge
+    return c
+
+
+def _explore_extra(a):
+    c = ''
+    if getattr(a, 'lean', 0):
+        c += ' enable_visualizer:=false enable_legacy_metrics:=false enable_diagnostics:=false'
+    if getattr(a, 'gpu', 0):
+        c += ' render_gpu:=true'
     return c
 
 
@@ -341,8 +447,9 @@ def method_plan(a, ent, spawn, run_dir, sdf=None, bridge_cfg=None, goals_file=No
             'explore_stack',
             'ros2 launch vacuum_exploration exploration.launch.py environment:=%s '
             'spawn_x:=%.6f spawn_y:=%.6f spawn_yaw:=%.6f odom_mode:=eval headless:=%s '
-            'use_rviz:=false database_path:=%s/rtabmap.db %s'
-            % (a.world, sx, sy, syaw, _b(a.headless), run_dir, _noise_args(a))))
+            'use_rviz:=false database_path:=%s/rtabmap.db %s%s'
+            % (a.world, sx, sy, syaw, _b(a.headless), run_dir, _noise_args(a),
+               _explore_extra(a))))
         plan['gates'] = ['G4_tf', 'G5_nav', 'G6_map']
     elif a.method == 'scripted_goals':
         dyn = dynamic_models(ent)
@@ -403,8 +510,9 @@ def method_plan(a, ent, spawn, run_dir, sdf=None, bridge_cfg=None, goals_file=No
                 'explore_stack',
                 'ros2 launch vacuum_exploration exploration.launch.py environment:=%s '
                 'spawn_x:=%.6f spawn_y:=%.6f spawn_yaw:=%.6f odom_mode:=eval headless:=%s '
-                'use_rviz:=false database_path:=%s/rtabmap.db start_manager:=false %s'
-                % (a.world, sx, sy, syaw, _b(a.headless), run_dir, _noise_args(a))))
+                'use_rviz:=false database_path:=%s/rtabmap.db start_manager:=false %s%s'
+                % (a.world, sx, sy, syaw, _b(a.headless), run_dir, _noise_args(a),
+                   _explore_extra(a))))
             plan['gates'] = ['G4_tf', 'G5_nav', 'G6_map']
         else:
             plan['stack'].append(ProcessSpec('sim', sim_cmd(a, spawn, sdf)))
@@ -498,7 +606,7 @@ def monitor(run_dir, procs, timeout, meta_t=None):
         signal.signal(signal.SIGINT, old)
 
 
-def shutdown(run_dir, procs, bag, eval_proc):
+def shutdown(run_dir, procs, bag, eval_proc, slot=0):
     if eval_proc is not None and eval_proc.alive():
         ros('ros2 topic pub --once /eval/stop std_msgs/msg/Empty "{}"', 20)
         t_end = time.time() + 30
@@ -517,8 +625,12 @@ def shutdown(run_dir, procs, bag, eval_proc):
         p.wait(max(0.1, t_end - time.time()))
     for p in everyone:
         p.signal(signal.SIGKILL)
-    if subprocess.run(['pgrep', '-f', 'gz sim'], capture_output=True).stdout.strip():
-        subprocess.run(['pkill', '-9', '-f', 'gz sim'])
+    # last resort: only gz processes belonging to THIS slot's partition
+    for pid in pids_with_partition(slot_env(slot)[1]):
+        try:
+            os.kill(pid, signal.SIGKILL)
+        except OSError:
+            pass
 
 
 def write_meta(path, a, run_dir, spawn, worlds_ent, notes, extra=None):
@@ -536,6 +648,9 @@ def write_meta(path, a, run_dir, spawn, worlds_ent, notes, extra=None):
         episode_timeout_sim_sec=a.timeout_sim_sec,
         swath_width_m=snap.get('swath_width_m', 0.25),
         grid_resolution_m=snap.get('grid_resolution_m', 0.05), headless=bool(a.headless),
+        slot=int(getattr(a, 'slot', 0)), ros_domain_id=slot_env(getattr(a, 'slot', 0))[0],
+        gz_partition=slot_env(getattr(a, 'slot', 0))[1], lean=int(getattr(a, 'lean', 0)),
+        gpu=int(getattr(a, 'gpu', 0)),
         versions=dict(gz=version_of(['bash', '-c', ROS_ENV + 'gz sim --version']),
                       python=sys.version.split()[0]),
         run_notes=notes)
@@ -569,9 +684,18 @@ def finish(run_dir, reason, wall0, failed_note=None):
 
 def run_one(a):
     root = os.path.expanduser(a.runs_root)
-    rc = preflight(root)
+    slot = int(getattr(a, 'slot', 0))
+    set_slot(slot)
+    rc = preflight(root, slot)
     if rc:
         return rc
+    try:
+        return _run_one(a, root, slot)
+    finally:
+        release_slot_lock(slot, root)
+
+
+def _run_one(a, root, slot):
     run_dir = os.path.join(root, a.experiment, a.world,
                            method_dir_name(a.method, a.goal_list if a.method == 'scripted_goals' else None,
                                            a.nav_map, a.stack), 'seed_%03d' % a.seed)
@@ -622,7 +746,7 @@ def run_one(a):
     reason = None
     try:
         bag = Proc('bag', 'ros2 bag record -o %s/bag --use-sim-time -s sqlite3 %s'
-                   % (run_dir, BAG_TOPICS), run_dir)
+                   % (run_dir, bag_topics(getattr(a, 'lean', 0))), run_dir)
         t_stack = time.time()
         for sp in plan['stack']:
             time.sleep(max(0.0, sp.delay_s - (time.time() - t_stack)))
@@ -655,7 +779,7 @@ def run_one(a):
         reason = 'bringup_failed'
     finally:
         event(run_dir, 'stopping', reason or '')
-        shutdown(run_dir, procs, bag, ev)
+        shutdown(run_dir, procs, bag, ev, slot)
     out = finish(run_dir, reason, wall0)
     return 0 if out['status'] in ('ok', 'partial') else 1
 
@@ -679,6 +803,12 @@ def build_parser():
                     help='default: worlds.yaml timeout_sim_sec or 1200')
     ap.add_argument('--runs-root', default='~/eval_runs')
     ap.add_argument('--force', action='store_true')
+    ap.add_argument('--slot', type=int, default=0,
+                    help='parallel slot N: ROS_DOMAIN_ID=10+N (0 for slot 0), GZ_PARTITION=vacuum_slotN')
+    ap.add_argument('--lean', type=int, choices=[0, 1], default=0,
+                    help='1 = disable optional nodes and trim the bag (batch passes 1)')
+    ap.add_argument('--gpu', type=int, choices=[0, 1], default=0,
+                    help='1 = render_gpu:=true (do not pool with gpu=0 results)')
     return ap
 
 

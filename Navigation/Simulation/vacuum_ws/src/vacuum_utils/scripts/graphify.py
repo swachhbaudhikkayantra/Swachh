@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.12
+#!/usr/bin/env python3
 """
 graphify.py — Swachh Boudhik Yantra Workspace Graph Generator
 ──────────────────────────────────────────────────────────────

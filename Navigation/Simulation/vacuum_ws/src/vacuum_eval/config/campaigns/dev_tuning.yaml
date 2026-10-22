@@ -11,3 +11,4 @@ nav_maps: [gt]
 goal_lists: [fixed]
 timeout_sim_sec: 300
 headless: 1
+# optional: parallel: K (slots; CLI --parallel overrides), lean: 1, gpu: 0

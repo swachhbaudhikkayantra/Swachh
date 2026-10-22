@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.12
+#!/usr/bin/env python3
 """
 frontier_visualizer.py  —  Stage 4B: RViz Visualisation
 ─────────────────────────────────────────────────────────

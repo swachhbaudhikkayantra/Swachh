@@ -194,3 +194,10 @@ See `12_acceptance_tests.md` T-02x. In short: a 3-minute smoke episode (timeout 
 - Continuous metrics keep mean/std/t-CI and add percentile bootstrap `boot_ci_lo`/`boot_ci_hi` over episodes.
 - Method comparisons keep Wilcoxon / Mann-Whitney and add Holm-Bonferroni `p_holm` across all comparisons in the run.
 - `python3 -m vacuum_eval.plan_sample_size` gives episodes needed (design effect 1+(m-1)ICC; t-based for continuous; `--from-root RUNS --metric KEY` estimates p/sd/ICC) and a wall-time estimate (`--episode-wall-min`, default 45).
+
+## 2026-10-22 addendum: parallel slots, lean episodes, GPU
+
+- `run_episode --slot N` (default 0): ROS_DOMAIN_ID = 10+N (0 for slot 0), GZ_PARTITION=`vacuum_slotN`, ROS_LOCALHOST_ONLY=1. run_meta records slot, ros_domain_id, gz_partition. Preflight refuses only if a process with this slot's GZ_PARTITION exists in /proc/*/environ or `~/eval_runs/.slotN.lock` holds a live PID (stale lock replaced). Shutdown killpg's only this episode's process groups; last resort kills only gz processes carrying this slot's partition (no global pkill).
+- `run_batch --parallel K` (or campaign `parallel: K`): K worker slots 0..K-1, each takes the next job; slot i first starts after i*60 s (`--stagger-sec`). Split enforcement and manifest unchanged. `--prebuild-gt` builds every matrix world's GT grid first. GT cache writes are atomic (temp + os.replace).
+- `--lean {0,1}` (batch default 1, single run default 0; campaign `lean:`): adds `enable_visualizer:=false enable_legacy_metrics:=false enable_diagnostics:=false` (exploration) / `enable_diagnostics:=false` (sim) and drops /clock and /joint_states from the bag. Recorded as run_meta.lean.
+- `--gpu {0,1}` (campaign `gpu:`): passes `render_gpu:=true`; recorded as run_meta.gpu. gpu=1 and gpu=0 results must not be pooled (aggregate grouping should include gpu).

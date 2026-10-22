@@ -79,3 +79,42 @@ def test_invalid_excluded_and_keys():
     p = [r for r in out if r['kind'] == 'pooled'][0]
     assert np.isclose(p['pooled_pct'], 75.0) and 'cluster_ci_lo' in p
     assert 'ignores clustering' in p['wilson_note']
+
+
+def _mk(tmp_path, name, gpu, lean, meta=False, method='frontier'):
+    d = tmp_path / name
+    d.mkdir(parents=True)
+    hdr = ['world', 'method', 'odom_noise', 'seed', 'status', 'x']
+    row = ['w', method, 0, 0, 'ok', 5.0]
+    if gpu is not None and not meta:
+        hdr += ['gpu', 'lean']
+        row += [gpu, lean]
+    with open(d / 'summary.csv', 'w', newline='') as f:
+        w = csv.writer(f)
+        w.writerow(hdr)
+        w.writerow(row)
+        row[3] = 1
+        row[5] = 6.0
+        w.writerow(row)
+    if meta:
+        (d / 'run_meta.yaml').write_text(f'gpu: {gpu}\nlean: {lean}\n')
+
+
+def test_gpu_lean_not_pooled(tmp_path):
+    _mk(tmp_path, 'a', None, None)
+    _mk(tmp_path, 'b', 1, 0, meta=True)
+    _mk(tmp_path, 'c', 0, 1)
+    out = tmp_path / 'agg.csv'
+    ag.main(['--root', str(tmp_path), '--out', str(out)])
+    rows = [r for r in csv.DictReader(open(out)) if r['kind'] == 'stat' and r['metric'] == 'x']
+    assert sorted((r['gpu'], r['lean'], r['n']) for r in rows) == [
+        ('0', '0', '2'), ('0', '1', '2'), ('1', '0', '2')]
+
+
+def test_compare_only_equal_gpu_lean(tmp_path):
+    _mk(tmp_path, 'a', 0, 0, method='m1')
+    _mk(tmp_path, 'b', 1, 0, method='m2')
+    _mk(tmp_path, 'c', 0, 0, method='m2')
+    rows = ag.aggregate(ag.load_summaries(str(tmp_path)), B=50)
+    comps = [r for r in rows if r['kind'] == 'compare']
+    assert len(comps) == 1 and comps[0]['gpu'] == '0' and comps[0]['lean'] == '0'

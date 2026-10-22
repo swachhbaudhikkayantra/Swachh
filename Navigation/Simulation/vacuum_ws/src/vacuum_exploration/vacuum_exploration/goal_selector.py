@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.12
+#!/usr/bin/env python3
 """
 goal_selector.py  —  Stage 4B: Frontier Goal Selector (Utility Class)
 ──────────────────────────────────────────────────────────────────────

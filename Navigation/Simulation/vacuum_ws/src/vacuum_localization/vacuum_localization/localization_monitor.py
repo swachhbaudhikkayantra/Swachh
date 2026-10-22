@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.12
+#!/usr/bin/env python3
 """
 localization_monitor.py  —  Stage 5: AMCL Localization Quality Monitor
 ────────────────────────────────────────────────────────────────────────

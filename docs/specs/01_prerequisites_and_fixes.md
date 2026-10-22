@@ -139,3 +139,18 @@ See `09_worlds.md`. Required before any coverage/completeness number from the co
 - Change (`exploration_manager.py`): (1) a snapped goal within `min_goal_distance` (0.30 m) of the robot is not sent; the frontier is blacklisted with reason `goal_at_robot`, no goal event is emitted, and the new status field `frontiers_skipped` is incremented. (2) After a SUCCEEDED goal, if within 2 detection cycles a frontier within `blacklist_radius` is still present and free cells grew by fewer than `map_growth_threshold` since the goal was sent, it is blacklisted as `no_information_gain`. (3) New parameter `min_frontier_size_m` (default 0.5): minimum frontier length in metres (cells x map resolution); smaller frontiers are ignored by the manager. The detector's `min_frontier_size` stays in cells.
 - Frame fix: the robot position came from `/odom` (odom frame) but goals and frontiers are in `map`. It is now read from TF map->base_footprint (odom fallback with a one-time warning). This also corrects the selector's distance term.
 - Tests: `vacuum_exploration/test/test_goal_selection_guard.py` (pure helper functions).
+
+## 2026-10-22 - Optional GPU rendering (WSL2) launch options
+
+- `sim.launch.py` / `exploration.launch.py` gained `render_gpu` (default false), `gpu_adapter` (default `Intel`), `enable_camera_diagnostics` (default true; forwarded to `controllers.launch.py`). `exploration.launch.py` also gained `enable_visualizer` and `enable_legacy_metrics` (both default true) and forwards `enable_diagnostics`.
+- `render_gpu:=true` sets `GALLIUM_DRIVER=d3d12` and `MESA_D3D12_DEFAULT_ADAPTER_NAME=<gpu_adapter>` for the gz process only (scoped GroupAction). Needed because /dev/dri/* is root-only in WSL2 so gz falls back to llvmpipe; /dev/dxg is world-accessible and Mesa's d3d12 driver uses it. If the env vars are not enough, add the user to the `render`/`video` groups.
+- On native Linux GPUs (e.g. NVIDIA workstation) keep `render_gpu:=false`; nothing is needed.
+- Verify with `Navigation/Simulation/scripts/check_gpu_render.sh` (run manually; `--gz WORLD` measures true RTF = d(sim_time)/d(wall), not the `real_time_factor` field).
+
+## 2026-10-22 - Local costmap static layer; BackUp before Spin (R1, pilot-2 contact slip)
+
+- Problem (pilot2/apartment/frontier/seed_002): chair_1 was behind the robot and last seen about 28 s earlier, so it had decayed out of the local STVL (15 s). MPPI drove an arc into it (contact 318.4-324.3 s). The BT then ran ClearEntireCostmap (local) and a 90 deg Spin while the robot was pressed against the chair. Spin checks the local costmap, which no longer held the chair. The wheels slipped: they integrated about 232 deg of yaw while the body turned about 105 deg, and the odometry yaw error went from -10 to +113 deg. SLAM followed and never recovered.
+- Change (`vacuum_nav2/config/nav2_params.yaml`): the local costmap plugins are now `static_layer, obstacle_layer, inflation_layer`. The static layer (`/map`, which relays `/rtabmap/map`) keeps mapped obstacles outside the forward FOV, and it survives ClearEntireCostmap and STVL decay. STVL parameters are unchanged; the BT clears the local costmap before every Spin, so a longer decay would not help.
+- Change (`vacuum_nav2/behavior_trees/explore.xml`): BackUp now comes before Spin in both RoundRobin recovery lists. `navigate.xml` (scripted navigation) is unchanged.
+- Unchanged: Smac Hybrid DUBIN, MPPI, footprint, inflation, physics. No torque limits are added: the motor torque is unknown, so a limit would be a fudge factor.
+- Council: `council/2026-10-22-031950/`.

@@ -10,11 +10,11 @@ import sys
 import numpy as np
 import yaml
 
-from vacuum_eval.metrics import (coverage, gt_grid, loop_closure, navigation, resources,
-                                 responsiveness, safety, trajectory, validity)
+from vacuum_eval.metrics import (contact_odom, coverage, gt_grid, health, loop_closure, navigation,
+                                 resources, responsiveness, safety, trajectory, validity)
 from vacuum_eval.metrics.common import load_run, write_json
 
-MODULE_ORDER = ['resources', 'coverage', 'trajectory', 'navigation', 'safety',
+MODULE_ORDER = ['resources', 'coverage', 'trajectory', 'contact_odom', 'navigation', 'safety',
                 'responsiveness', 'loop_closure', 'validity', 'counters']
 ALWAYS_KEYS = ['experiment', 'world', 'method', 'seed', 'odom_noise', 'spawn_x', 'spawn_y',
                'spawn_yaw', 'status', 'end_reason', 'episode_sim_sec', 'bringup_sim_sec',
@@ -89,7 +89,9 @@ def gt_grid_for(world, worlds_cfg, gt_dir=None):
         raise FileNotFoundError('no GT grid %s and no sdf_file/reachable_seed in worlds.yaml' % path)
     gt = gt_grid.build(resolve_sdf(ent['sdf_file']), tuple(ent['reachable_seed']))
     os.makedirs(gt_dir, exist_ok=True)
-    gt_grid.save(gt, path)
+    tmp = '%s.%d.tmp.npz' % (path[:-4], os.getpid())  # np.savez keeps a .npz suffix
+    gt_grid.save(gt, tmp)
+    os.replace(tmp, path)  # atomic: concurrent builders never expose a partial file
     return gt
 
 
@@ -229,10 +231,24 @@ def _lc_kwargs(run):
     return {arg: float(cfg[key]) for arg, key in names.items() if key in cfg}
 
 
+def _health_cfg(run):
+    cfg = (run.meta or {}).get('config_snapshot') or {}
+    if not cfg.get('health'):
+        p = os.path.join(_config_dir(), 'eval_defaults.yaml')
+        if os.path.exists(p):
+            with open(p) as f:
+                cfg = yaml.safe_load(f) or {}
+    h = dict(cfg.get('health') or {})
+    if cfg.get('lc_reg_rot_tol_deg') is not None:
+        h['lc_reg_rot_tol_deg'] = cfg['lc_reg_rot_tol_deg']
+    return h
+
+
 MODULES = {
     'resources': lambda c: resources.compute_resource_metrics(c['run']),
     'coverage': lambda c: coverage.compute_coverage(c['run'], _need_gt(c)),
     'trajectory': lambda c: trajectory.compute_trajectory_metrics(c['run']),
+    'contact_odom': lambda c: contact_odom.compute_contact_odom_metrics(c['run']),
     'navigation': lambda c: navigation.compute_navigation_metrics(c['run'], _need_gt(c)),
     'safety': lambda c: safety.compute_safety_metrics(c['run'], _need_gt(c), c['worlds_cfg']),
     'responsiveness': lambda c: responsiveness.compute_responsiveness_metrics(c['run']),
@@ -246,6 +262,7 @@ _KEYS = {
     'resources': lambda: list(resources._BASE_KEYS),
     'coverage': lambda: list(coverage.COVERAGE_KEYS),
     'trajectory': lambda: list(trajectory.SLAM_KEYS) + list(trajectory.ODOM_KEYS),
+    'contact_odom': lambda: list(contact_odom.CONTACT_ODOM_KEYS),
     'validity': lambda: list(validity.VALIDITY_KEYS),
     'counters': lambda: ['n_cmd_ticks', 'n_goals', 'distance_gt_m'],
 }
@@ -297,6 +314,11 @@ def compute(run_dir, only=None, gt_dir=None, worlds_cfg=None):
             out['status'] = 'invalid'
         notes.append('episode invalid: ' + '; '.join(out.get('invalid_reasons') or []))
     out['notes'] = notes
+    if only is None or 'health' in only:   # LAST: needs the merged summary
+        try:
+            out.update(health.compute_health(out, _health_cfg(run)))
+        except Exception as e:  # noqa: BLE001
+            out['notes'].append('health: %s' % e)
     return out
 
 

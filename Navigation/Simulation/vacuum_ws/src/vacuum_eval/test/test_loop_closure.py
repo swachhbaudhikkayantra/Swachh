@@ -98,7 +98,8 @@ def _reg_run(tf, a=(0.0, 0.0, 0.0), b=(1.0, 1.0, math.pi / 2)):
 
 def test_reg_correct_transform_far_apart_nodes():
     # Nodes 1.41 m apart: old position test says false, but transform matches GT.
-    m = compute_loop_closure_metrics(_reg_run((1.0, 1.0, math.pi / 2)))
+    m = compute_loop_closure_metrics(_reg_run((1.0, 1.0, math.pi / 2)),
+                                     convention='ref_to_loop')
     assert m['lc_n_true'] == 1 and m['lc_precision_pct'] == 100.0
     assert m['lc_precision_samepose_pct'] == 0.0
     assert m['lc_precision_loose_pct'] == 0.0   # 1.41 m > 1.0 m
@@ -115,9 +116,10 @@ def test_reg_wrong_transform_same_place():
 def test_reg_rotated_frame_and_rot_tol():
     # Pa=(1,0,90deg), Pb=(1,2,90deg): rel = (2, 0, 0). Tx=2.05 ok; yaw error 6 deg fails.
     a, b = (1.0, 0.0, math.pi / 2), (1.0, 2.0, math.pi / 2)
-    assert compute_loop_closure_metrics(_reg_run((2.05, 0.0, 0.0), a, b))['lc_n_true'] == 1
+    assert compute_loop_closure_metrics(_reg_run((2.05, 0.0, 0.0), a, b),
+                                        convention='ref_to_loop')['lc_n_true'] == 1
     assert compute_loop_closure_metrics(
-        _reg_run((2.0, 0.0, math.radians(6)), a, b))['lc_n_true'] == 0
+        _reg_run((2.0, 0.0, math.radians(6)), a, b), convention='ref_to_loop')['lc_n_true'] == 0
 
 
 def test_reg_missing_columns_fallback():
@@ -126,3 +128,44 @@ def test_reg_missing_columns_fallback():
         del r.loop_events[k]
     m = compute_loop_closure_metrics(r)
     assert m['lc_n_true'] == 1 and any('lack lc_tx' in n for n in m['notes'])
+
+
+def _tf_run(convention, lc_pose_b=(1.0, 0.5, 0.3)):
+    from vacuum_eval.metrics.loop_closure import expected_tf
+    pa = (0.0, 0.0, 0.0, 0.0)
+    pb = (0.0, *lc_pose_b)
+    tf = expected_tf(pa, pb, convention)
+    rows = [(10.0, 1, 0, 0, pb[1], pb[2], pb[3]), (100.0, 2, 1, 0, 0.0, 0.0, 0.0)]
+    a = np.array(rows, float)
+    le = {'t': a[:, 0], 'ref_id': a[:, 1], 'loop_closure_id': a[:, 2],
+          'proximity_detection_id': a[:, 3], 'gt_x': a[:, 4], 'gt_y': a[:, 5], 'gt_yaw': a[:, 6],
+          'lc_tx': np.array([np.nan, tf[0]]), 'lc_ty': np.array([np.nan, tf[1]]),
+          'lc_tyaw': np.array([np.nan, tf[2]])}
+    return Run(loop_events=le, episode_start_t=0.0, episode_end_t=100.0)
+
+
+def test_convention_param():
+    r = _tf_run('loop_to_ref')
+    assert compute_loop_closure_metrics(r, convention='loop_to_ref')['lc_n_true'] == 1
+    assert compute_loop_closure_metrics(r, convention='ref_to_loop')['lc_n_true'] == 0
+    r2 = _tf_run('ref_to_loop')
+    assert compute_loop_closure_metrics(r2)['lc_n_true'] == 0   # yaml default is loop_to_ref
+    assert compute_loop_closure_metrics(r)['lc_n_true'] == 1    # yaml default (no meta)
+    assert compute_loop_closure_metrics(r2, convention='ref_to_loop')['lc_n_true'] == 1
+    r.meta = {'config_snapshot': {'lc_transform_convention': 'loop_to_ref'}}
+    assert compute_loop_closure_metrics(r)['lc_n_true'] == 1    # from meta
+
+
+def test_reg_error_medians():
+    r = _reg_run((1.0 + 0.05, 1.0, math.pi / 2 + math.radians(2)))
+    m = compute_loop_closure_metrics(r, convention='ref_to_loop')
+    assert abs(m['lc_trans_err_median_m'] - 0.05) < 1e-9
+    assert abs(m['lc_rot_err_median_deg'] - 2.0) < 1e-6
+
+
+def test_reg_error_medians_null_without_columns():
+    r = _reg_run((0, 0, 0), b=(0.1, 0.0, 0.0))
+    for k in ('lc_tx', 'lc_ty', 'lc_tyaw'):
+        del r.loop_events[k]
+    m = compute_loop_closure_metrics(r)
+    assert m['lc_rot_err_median_deg'] is None and m['lc_trans_err_median_m'] is None

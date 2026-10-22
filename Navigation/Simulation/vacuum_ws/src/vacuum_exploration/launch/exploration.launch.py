@@ -79,6 +79,16 @@ def generate_launch_description():
         DeclareLaunchArgument('database_path', default_value='~/.ros/rtabmap.db'),
         DeclareLaunchArgument('start_manager', default_value='true',
                               description='false = run stack without exploration_manager'),
+        DeclareLaunchArgument('enable_visualizer', default_value='true',
+                              description='start frontier_visualizer'),
+        DeclareLaunchArgument('enable_legacy_metrics', default_value='true',
+                              description='start legacy exploration_metrics node'),
+        DeclareLaunchArgument('render_gpu', default_value='false',
+                              description='see sim.launch.py'),
+        DeclareLaunchArgument('gpu_adapter', default_value='Intel',
+                              description='see sim.launch.py'),
+        DeclareLaunchArgument('enable_diagnostics', default_value='true'),
+        DeclareLaunchArgument('enable_camera_diagnostics', default_value='true'),
     ]
 
     environment  = LaunchConfiguration('environment')
@@ -114,6 +124,10 @@ def generate_launch_description():
             'odom_mode':    LaunchConfiguration('odom_mode'),
             'odom_noise':   LaunchConfiguration('odom_noise'),
             'odom_noise_seed': LaunchConfiguration('odom_noise_seed'),
+            'render_gpu':   LaunchConfiguration('render_gpu'),
+            'gpu_adapter':  LaunchConfiguration('gpu_adapter'),
+            'enable_diagnostics': LaunchConfiguration('enable_diagnostics'),
+            'enable_camera_diagnostics': LaunchConfiguration('enable_camera_diagnostics'),
         }.items(),
         condition=IfCondition(launch_sim),
     )
@@ -178,6 +192,7 @@ def generate_launch_description():
             executable='frontier_visualizer',
             name='frontier_visualizer',
             output='screen',
+            condition=IfCondition(LaunchConfiguration('enable_visualizer')),
             parameters=[{'use_sim_time': True}],
         )],
     )
@@ -189,6 +204,7 @@ def generate_launch_description():
             executable='exploration_metrics',
             name='exploration_metrics',
             output='screen',
+            condition=IfCondition(LaunchConfiguration('enable_legacy_metrics')),
             parameters=[exploration_yaml, {
                 'use_sim_time': True,
                 'environment':  environment,

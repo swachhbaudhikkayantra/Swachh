@@ -2,7 +2,7 @@
 
 Audience: Claude agents (and humans) who will implement the measurement system. These specs say **exactly what to build, where, with which names, formulas and thresholds**, so that two agents implementing the same spec produce the same numbers. If something here is ambiguous, that is a spec bug: fix the spec first (record the decision in the "Decisions log" at the bottom of the relevant file), then code.
 
-Companion docs: `docs/METRICS_TO_BE_MEASURED.md` (what the metrics mean, status, tiers), `docs/HANDOFF.md` (environment, known bugs). This folder is the *how*.
+Companion docs: `docs/METRICS_TO_BE_MEASURED.md` (what the metrics mean, status, tiers), `docs/REQUIREMENTS.md` (start here: environment, constraints, open requirements), `docs/METRICS_STATUS.md` (live measurement status). This folder is the *how*.
 
 ## Reading order and dependencies
 

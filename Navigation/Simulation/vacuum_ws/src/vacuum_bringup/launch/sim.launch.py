@@ -29,6 +29,12 @@ Launch arguments:
   spawn_x/y/yaw      [0.0]           — robot initial pose
   enable_odom_noise  [false]          — Gaussian noise on /odom_noisy
   enable_diagnostics [true]           — enable motion diagnostics node
+  enable_camera_diagnostics [true]    — forwarded to controllers.launch.py
+  render_gpu         [false]          — true = gz uses Mesa d3d12 (WSL2 GPU) via
+                                        GALLIUM_DRIVER=d3d12 (gz process only)
+  gpu_adapter        [Intel]          — MESA_D3D12_DEFAULT_ADAPTER_NAME (empty = unset)
+                                        On native Linux GPUs (e.g. NVIDIA) leave
+                                        render_gpu:=false; nothing is needed.
 
 Usage:
   ros2 launch vacuum_bringup sim.launch.py
@@ -43,7 +49,9 @@ from launch import LaunchDescription
 from launch.actions import (
     AppendEnvironmentVariable,
     DeclareLaunchArgument,
+    GroupAction,
     LogInfo,
+    SetEnvironmentVariable,
     IncludeLaunchDescription,
     OpaqueFunction,
     TimerAction,
@@ -158,6 +166,16 @@ def generate_launch_description():
         'enable_diagnostics', default_value='true',
         description='Enable motion diagnostics node')
 
+    declare_enable_camera_diagnostics = DeclareLaunchArgument(
+        'enable_camera_diagnostics', default_value='true',
+        description='Forwarded to controllers.launch.py')
+    declare_render_gpu = DeclareLaunchArgument(
+        'render_gpu', default_value='false',
+        description='true = WSL2 GPU rendering for gz (GALLIUM_DRIVER=d3d12)')
+    declare_gpu_adapter = DeclareLaunchArgument(
+        'gpu_adapter', default_value='Intel',
+        description='MESA_D3D12_DEFAULT_ADAPTER_NAME when render_gpu:=true (empty = leave unset)')
+
     use_sim_time       = LaunchConfiguration('use_sim_time')
     use_rviz           = LaunchConfiguration('use_rviz')
     world_file         = LaunchConfiguration('world_file')
@@ -237,10 +255,25 @@ def generate_launch_description():
         headless_on = LaunchConfiguration('headless').perform(context).lower() == 'true'
         gz_args = ('-r -s ' if headless_on else '-r ') + \
             LaunchConfiguration('gz_verbose').perform(context) + ' ' + gz_args_world
-        actions = [IncludeLaunchDescription(
+        gz_include = IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
                 os.path.join(pkg_ros_gz_sim, 'launch', 'gz_sim.launch.py')),
-            launch_arguments={'gz_args': gz_args, 'on_exit_shutdown': 'true'}.items())]
+            launch_arguments={'gz_args': gz_args, 'on_exit_shutdown': 'true'}.items())
+        render_gpu = LaunchConfiguration('render_gpu').perform(context).lower() == 'true'
+        if render_gpu:
+            adapter = LaunchConfiguration('gpu_adapter').perform(context)
+            gpu_actions = [
+                LogInfo(msg='render_gpu=true: gz uses GALLIUM_DRIVER=d3d12, adapter=%r'
+                            % (adapter or '(default)')),
+                SetEnvironmentVariable('GALLIUM_DRIVER', 'd3d12')]
+            if adapter:
+                gpu_actions.append(
+                    SetEnvironmentVariable('MESA_D3D12_DEFAULT_ADAPTER_NAME', adapter))
+            # scoped group: env vars apply to the gz process only
+            actions = [GroupAction(gpu_actions + [gz_include], scoped=True)]
+        else:
+            actions = [LogInfo(msg='render_gpu=false: gz uses default Mesa renderer'),
+                       gz_include]
         if embed:
             actions.insert(0, log_msg)
         return actions
@@ -305,6 +338,7 @@ def generate_launch_description():
             'use_sim_time':     use_sim_time,
             'enable_odom_noise': enable_odom_noise,
             'enable_diagnostics': enable_diagnostics,
+            'enable_camera_diagnostics': LaunchConfiguration('enable_camera_diagnostics'),
             'odom_mode':         LaunchConfiguration('odom_mode'),
             'odom_noise':        LaunchConfiguration('odom_noise'),
             'odom_noise_seed':   LaunchConfiguration('odom_noise_seed'),
@@ -350,6 +384,9 @@ def generate_launch_description():
         declare_odom_noise,
         declare_odom_noise_seed,
         declare_extra_bridge,
+        declare_enable_camera_diagnostics,
+        declare_render_gpu,
+        declare_gpu_adapter,
 
         # Launch in dependency order
         texture_path,

@@ -6,6 +6,7 @@ r_inscribed_m: 0.125
 grid_margin_m: 0.50
 swath_width_m: 0.25
 collision_gap_s: 0.5
+contact_odom_corrupt_deg: 15.0   # odom_corrupted_by_contact flag (diagnostic stratifier, never an exclusion); council 2026-10-22-031950
 encounter_distance_m: 0.50
 deadline_cmd_motion_s: 0.5
 deadline_stop_s: 0.5
@@ -16,6 +17,7 @@ lc_yaw_tol_deg: 30.0
 lc_min_time_gap_s: 30.0
 lc_reg_trans_tol_m: 0.10   # closure correct if RTAB-Map transform matches GT relative transform
 lc_reg_rot_tol_deg: 5.0
+lc_transform_convention: loop_to_ref   # verified 2026-10-22 on pilot2: median error 0.032 m vs 0.699 m (ref_to_loop)
 episode_timeout_sim_sec: 1200
 odom_noise:
   sigma_scale_lin: 0.02
@@ -27,3 +29,24 @@ validity:
   max_img_drop_pct: 10.0
   max_rtabmap_gap_s: 5.0
   min_rtabmap_update_frac: 0.5
+# Per-metric health classification (vacuum_eval/metrics/health.py).
+# Floors are pre-registered DIAGNOSIS TRIGGERS (status BAD), never exclusion criteria.
+health:
+  min_n:
+    goals: 5
+    encounters: 3
+    lc_accepted: 5
+    lc_revisits: 3
+    resp_events: 10
+  floors:
+    nav_success_gt_pct: 50
+    coverage_explored_pct: 70
+    map_completeness_pct: 60
+    ate_fixed_rmse_m: 0.30   # BAD if ABOVE
+    lc_precision_pct: 50
+    avoidance_pct: 80
+  suspect:
+    nav_gt_divergence_pp: 30
+    min_rtf: 0.15
+    frame_offset_m: 0.10   # = spec 04 start-offset tolerance
+    map_align_shift_m: 0.20   # = spec 03 alignment tolerance

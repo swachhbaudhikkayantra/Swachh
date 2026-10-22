@@ -1,0 +1,359 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Council Verdict: 2026-10-22</title>
+<style>
+ :root {
+ --paper: #fafaf7;
+ --ink: #141413;
+ --ink-soft: #4b4b47;
+ --ink-mute: #8a8a83;
+ --rule: #e5e3dc;
+ --accent: #1e3a5f;
+ --accent-soft: #e8eef5;
+ --sans: "Inter", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+ --serif: "Iowan Old Style", "Iowan", ui-serif, Georgia, Cambria, "Times New Roman", serif;
+ --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+ }
+ * { box-sizing: border-box; }
+ html, body { margin: 0; padding: 0; background: var(--paper); color: var(--ink); }
+ body { font-family: var(--serif); font-size: 17px; line-height: 1.6; -webkit-font-smoothing: antialiased; }
+ .wrap { max-width: 780px; margin: 0 auto; padding: 64px 32px 96px; }
+
+ .eyebrow {
+ font-family: var(--sans);
+ font-size: 11px;
+ letter-spacing: 0.22em;
+ text-transform: uppercase;
+ color: var(--accent);
+ font-weight: 600;
+ margin: 0 0 16px;
+ }
+ h1.question {
+ font-family: var(--serif);
+ font-weight: 500;
+ font-size: 34px;
+ line-height: 1.25;
+ letter-spacing: -0.01em;
+ margin: 0 0 20px;
+ color: var(--ink);
+ }
+ .meta {
+ font-family: var(--sans);
+ font-size: 13px;
+ color: var(--ink-mute);
+ margin: 0 0 56px;
+ border-bottom: 1px solid var(--rule);
+ padding-bottom: 28px;
+ }
+
+ section.verdict {
+ background: var(--accent-soft);
+ border-left: 3px solid var(--accent);
+ padding: 36px 40px;
+ margin: 0 0 56px;
+ border-radius: 2px;
+ }
+ section.verdict h2 {
+ font-family: var(--sans);
+ font-size: 11px;
+ letter-spacing: 0.22em;
+ text-transform: uppercase;
+ color: var(--accent);
+ margin: 0 0 24px;
+ font-weight: 600;
+ }
+ section.verdict h3 {
+ font-family: var(--sans);
+ font-size: 14px;
+ font-weight: 600;
+ color: var(--ink);
+ margin: 28px 0 8px;
+ letter-spacing: 0;
+ }
+ section.verdict h3:first-of-type { margin-top: 0; }
+ section.verdict p, section.verdict ul { margin: 0 0 8px; }
+ section.verdict ul { padding-left: 20px; }
+ section.verdict li { margin-bottom: 6px; }
+ section.verdict .recommendation {
+ font-size: 19px;
+ line-height: 1.5;
+ margin-top: 4px;
+ }
+ section.verdict .one-thing {
+ font-family: var(--serif);
+ font-style: italic;
+ font-size: 18px;
+ border-top: 1px solid rgba(30, 58, 95, 0.2);
+ padding-top: 20px;
+ margin-top: 28px;
+ }
+
+ .round-label {
+ font-family: var(--sans);
+ font-size: 11px;
+ letter-spacing: 0.22em;
+ text-transform: uppercase;
+ color: var(--ink-mute);
+ font-weight: 600;
+ margin: 0 0 16px;
+ padding-top: 16px;
+ border-top: 1px solid var(--rule);
+ }
+
+ details {
+ border-bottom: 1px solid var(--rule);
+ padding: 20px 0;
+ }
+ details[open] { padding-bottom: 28px; }
+ summary {
+ cursor: pointer;
+ list-style: none;
+ font-family: var(--sans);
+ font-weight: 500;
+ font-size: 15px;
+ color: var(--ink);
+ display: flex;
+ align-items: baseline;
+ gap: 12px;
+ user-select: none;
+ }
+ summary::-webkit-details-marker { display: none; }
+ summary::before {
+ content: "+";
+ font-family: var(--mono);
+ color: var(--accent);
+ font-weight: 400;
+ font-size: 16px;
+ transition: transform 160ms ease;
+ display: inline-block;
+ width: 12px;
+ }
+ details[open] summary::before { content: "−"; }
+ .advisor-kind {
+ font-family: var(--sans);
+ font-size: 11px;
+ letter-spacing: 0.16em;
+ text-transform: uppercase;
+ color: var(--ink-mute);
+ margin-left: 4px;
+ }
+ details .body {
+ margin-top: 16px;
+ padding-left: 24px;
+ color: var(--ink-soft);
+ font-size: 16px;
+ line-height: 1.65;
+ }
+ details .body p { margin: 0 0 12px; }
+ details .body p:last-child { margin-bottom: 0; }
+
+ footer {
+ margin-top: 80px;
+ padding-top: 24px;
+ border-top: 1px solid var(--rule);
+ font-family: var(--sans);
+ font-size: 12px;
+ color: var(--ink-mute);
+ line-height: 1.6;
+ }
+ footer code {
+ font-family: var(--mono);
+ background: rgba(30, 58, 95, 0.08);
+ padding: 1px 6px;
+ border-radius: 3px;
+ color: var(--ink);
+ font-size: 11px;
+ }
+
+ @media (max-width: 640px) {
+ .wrap { padding: 40px 20px 64px; }
+ h1.question { font-size: 26px; }
+ section.verdict { padding: 28px 24px; }
+ }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+ <p class="eyebrow">Council Verdict</p>
+ <h1 class="question">R1 (evaluate pilot 2): around t=310-325 s odometry yaw jumps ~125 deg vs ground truth and SLAM follows it, after chair_1 contacts. Decide with evidence whether this is a simulation artefact, a real but rare event, or a recording bug; whether to add tilt/flip detection as a validity rule; and how to treat episodes with collisions that corrupt odometry.</h1>
+ <p class="meta">22 October 2026, 03:19 &nbsp;·&nbsp; 5 advisors · 5 peer reviewers</p>
+
+ <section class="verdict">
+ <h2>Synthesis</h2>
+
+ <h3>Where the council agrees</h3>
+ <ul>
+<li><strong>All five</strong> (Contrarian, First Principles, Expansionist, Outsider, Executor): pilot 2 stays a <strong>valid, failed</strong> episode; the headline ATE (3.10 m) is kept; marking it invalid (option 3) is cherry-picking because the collision was caused by the stack itself.</li>
+<li><strong>All five</strong> reject option 4 (wheel torque limits: the real motor torque is unknown, so any value is a guessed free parameter, i.e. a fudge factor) and option 5 (3D GT + tilt rule: contact z is pinned to the chassis faces, nothing tilted).</li>
+<li><strong>All five</strong>: the root cause is a navigation-stack defect (local costmap forgets obstacles outside the forward-only FOV; Spin checks that same costmap), fixable now on the dev split before any test run.</li>
+<li><strong>Contrarian, First Principles, Outsider, Executor</strong>: the 4/26 goal success with 209 &quot;no valid path&quot; is a bigger problem than the collision and must be investigated separately.</li>
+</ul>
+
+ <h3>Where the council clashes</h3>
+ <ul>
+<li><strong>Confirmation size.</strong> The Contrarian wants several dev episodes with a stopping rule fixed in advance; First Principles, Outsider and Executor accept one confirmation run. Reasonable either way: one run tests the mechanism on the same seed, but n=1 cannot show the failure mode is rare.</li>
+<li><strong>How big to make the finding.</strong> The Expansionist wants a headline-grade &quot;contact-corruption rate&quot; metric; First Principles and Executor keep it a diagnostic. A new headline after seeing data needs a logged deviation; a diagnostic does not.</li>
+<li><strong>Bundle or separate fixes.</strong> The Executor wants decay-length and static-layer changes tested as separate experiments; the others bundle them.</li>
+</ul>
+
+ <h3>Blind spots the council caught</h3>
+ <ul>
+<li><strong>Axle offset (4 of 5 reviewers).</strong> The wheel axle is 8 cm behind <code>base_footprint</code>, so Spin&#x27;s own collision check simulates rotation about the wrong point; even a perfect costmap can be clipped during an in-place spin.</li>
+<li><strong>Pre-register before the test split (3 of 5).</strong> The new keys, the 15 deg threshold and the &quot;with and without flagged episodes&quot; reporting rule must be written into the pre-registration before the first test run, not chosen afterwards.</li>
+<li><strong>SLAM never recovered (4 of 5).</strong> RTAB-Map followed the corrupted odometry for 280 s with no correction; that is a SLAM-side result to report, not only a navigation one.</li>
+</ul>
+
+ <h3>The recommendation</h3>
+ <p class="recommendation">Adopt option 1 plus a targeted option 2. Pilot 2 stays valid and failed with headline ATE 3.10 m; add diagnostic keys (contact-induced yaw excess, `odom_corrupted_by_contact`, ATE up to the first corrupting contact), pre-registered as secondary stratifiers that are never exclusions, with the ATE headline also reported with and without flagged episodes and as a median. On the stack, add the SLAM-map static layer to the local costmap and run BackUp before Spin; I overrule the Executor&#x27;s separate decay experiment, because the behaviour tree runs ClearEntireCostmap on the local costmap before every Spin, so no STVL decay length could have kept the chair. I side with the Contrarian on n: confirm on two dev episodes (seed 2, as in pilot 2, plus seed 1) with a pre-declared stopping rule (no `odom_corrupted_by_contact` flag and no Spin while in contact in either run). The axle offset is documented as a limitation, not changed in R1.</p>
+
+ <p class="one-thing"><strong>Do first:</strong> Run the seed-2 apartment frontier confirmation episode with the fixed stack and check `odom_corrupted_by_contact` and `n_collisions` in its summary.json.</p>
+ </section>
+
+ <p class="round-label">Round 1: Advisors</p>
+
+ <details>
+ <summary>The Contrarian <span class="advisor-kind">downside lens</span></summary>
+ <div class="body"><p>You are asking the wrong question. This is not a classification problem, it is a stack-validity problem, and every option on the list has a hole.</p>
+<p>Option 1 is the only honest one for this episode, but it is not enough. This is one collision, and 4/26 goals succeeded, with 209 &quot;no valid path&quot; and 40 &quot;start occupied&quot; messages. Pilot 2 is mostly a failing stack. The odometry corruption is a symptom. STVL decay of 15 s on a forward-only camera, with no static layer, means the robot is blind to everything it passed. That is a design defect you introduced between pilots, and the test split will hit it in every episode. A 3.10 m ATE from one slip tells you the metric is fragile. It does not tell you the robot is bad.</p>
+<p>Option 3 is cherry-picking with a lab coat. &quot;Odometry corrupted by contact&quot; is triggered by the stack&#x27;s own behavior. Once you exclude on it, any method that bumps things looks better, and reviewers will see that.</p>
+<p>Option 4 is a fudge factor wearing a physics label. Unknown real motor torque means any limit you pick is a free parameter you will be asked to justify.</p>
+<p>Option 5 is wasted effort. Nothing was seen, and the contact z values rule out tilt.</p>
+<p>The unexamined risk is that you tune on one episode. &quot;Fix then rerun one dev confirmation&quot; is n=1, and a different seed will find a different collision mode. Do not confirm with one run. Run several dev episodes, and decide the stopping rule in advance.</p>
+<p>Also, the Spin recovery fix is the clear win. Spinning against an obstacle that the local costmap cannot see is a plain bug, not a tuning choice. Fix that first.</p>
+<p>Freeze the stack only after the dev episodes show collisions are rare. If you freeze at 4/26 goals, the paper&#x27;s headline ATE will be noise from contact events.</p></div>
+ </details>
+
+ <details>
+ <summary>The First Principles Thinker <span class="advisor-kind">reframe lens</span></summary>
+ <div class="body"><p>The question to ask is not &quot;how do we classify this episode&quot;. It is &quot;what is the ATE headline supposed to measure, and does this episode measure that?&quot;</p>
+<p>The headline is meant to show SLAM quality given a navigation stack. This episode shows a different thing. The nav stack caused an unobserved collision, and the collision then corrupted the odometry. The 3.10 m ATE therefore measures the nav stack&#x27;s blindness to the chair, not SLAM. Both are real findings, but they are different findings.</p>
+<p>Premise tests:</p>
+<ul>
+<li>&quot;Real failure vs simulator artefact&quot; is a false binary. The collision is a real nav failure. Wheel slip against a blocked chassis would also happen on a real robot. The unbounded slip is partly an artefact of having no torque limit, but real motors stall too, so the artefact is one of degree and not of kind.</li>
+<li>Option 3 (invalid) is wrong. No physics fault occurred: the contact z-values are clean, velocities are bounded, and the odometry is consistent. Excluding it is cherry-picking, and the pre-registration forbids it.</li>
+<li>Option 5 (3D GT) is wrong. No tilt or flip was observed, so it would fix a problem that does not exist.</li>
+<li>Option 4 (torque limit) is wrong. Real torque is unknown, so any value would be a fudge factor.</li>
+</ul>
+<p>What to do:</p>
+<p>1. Option 1. Keep the headline ATE and report the episode as a failure. Add diagnostic keys: ATE to first contact, contact slip in degrees, and <code>odom_corrupted_by_contact</code>. Treat the flag as a stratifier for reporting, never as an exclusion rule. Report the headline with and without flagged episodes, and use cluster-bootstrap CIs, so a single episode cannot dominate the mean.</p>
+<p>2. Do the dev-split nav fix now, before any test run starts. The cause is a stack defect: a 15 s STVL decay plus a Spin recovery that checks only the local costmap. Block Spin while the footprint is in collision, and BackUp first. Lengthen the decay or add a persistent static layer. Then run one confirmation episode. The only cost of fixing now is one 35 min run. The cost of fixing after the test split starts is a ~44 h campaign rerun.</p>
+<p>3. Disclose the stack change. Pilot 2 stays in the paper as the motivating failure.</p>
+<p>The 4/26 goal success is the bigger signal. Check it before anything else, because it suggests the stack has deeper problems than this one chair.</p></div>
+ </details>
+
+ <details>
+ <summary>The Expansionist <span class="advisor-kind">upside lens</span></summary>
+ <div class="body"><p>You are asking a defensive question (classify, patch, exclude) when this episode is a gift: a free, measured, mechanistic failure case that most SLAM-evaluation papers never get.</p>
+<p>1. Make the failure mode the paper&#x27;s contribution. You already have a clean causal chain: STVL decay, then forgotten chair, then contact, then Spin recovery against the chair, then wheel slip (232 deg integrated vs 105 deg real), then 123 deg SLAM yaw error with no recovery. The pre-contact numbers (SLAM 0.123 m vs odometry 0.276 m, 55 % improvement) are a real result. The post-contact numbers (3.10 m) are a different real result. Report both as pre-registered diagnostic keys: ATE up to first contact, contact-induced slip in deg, and time-to-divergence. A &quot;contact-corruption rate per episode&quot; with cluster-bootstrap CIs is a headline-grade robustness metric that reviewers will remember. Option 1 is the floor, not the answer.</p>
+<p>2. Do option 2 now, on the dev split, while it is free. It is the only fix that moves the whole project. Only 4/26 goals succeeded, with 209 &quot;no valid path&quot; and 40 &quot;start occupied&quot; messages, so the navigation stack is the bottleneck for every later metric. Fix the stack before the 44 h campaign and you get far more usable episodes per hour of wall time. Block Spin when the footprint is in collision and run BackUp first. Lengthen local STVL decay, or add a persistent static layer. A near-zero-cost bonus is to run the current and fixed stacks as a paired ablation, which turns one pilot into a &quot;nav-stack robustness shapes SLAM validity&quot; finding.</p>
+<p>3. Skip options 3, 4 and 5. Excluding the episode hides your most interesting data. Torque limits are a fudge factor you cannot justify. A 3D GT plugin adds cost for a tilt problem that did not occur.</p>
+<p>4. Build one reusable asset: an odom_corrupted_by_contact detector (wheel yaw minus GT yaw gap during contact windows). It becomes a general tool for the field.</p></div>
+ </details>
+
+ <details>
+ <summary>The Outsider <span class="advisor-kind">fresh-eyes lens</span></summary>
+ <div class="body"><p>Reading this as a stranger, I think you are asking the wrong question. You are debating labels (valid/invalid, option 1 to 5) when the facts already show the problem is one specific hole in your own stack.</p>
+<p>1. The robot hit a chair it could not see. Your costmap forgets obstacles after 15 s, and the chair was last seen 28 s earlier. Then the recovery behaviour (Spin) checked that same forgetful map and spun the robot while it was pressed against the chair. This is not a mysterious simulator artefact. It is a navigation bug, and it will recur in every episode. A fix that stops a robot from grinding into things is not tuning to the test, and you are allowed to make it because no test run has started. Block Spin while in collision and BackUp first. Add the static layer, or a longer decay, to the local costmap. Rerun one dev episode. Do this before the 44 h campaign, not after.</p>
+<p>2. Do not mark the episode invalid (option 3). The robot really collided, so excluding it is cherry-picking by your own definition. Report it as a failure (option 1) and keep the headline ATE.</p>
+<p>3. Your 4/26 goal success, 209 &quot;no valid path&quot; messages and 40 &quot;start occupied&quot; messages are a bigger red flag than the collision. One bad collision does not explain a navigation stack that mostly fails to plan. Check this first.</p>
+<p>4. Skip options 3, 4 and 5. Adding torque limits means inventing a motor value you admit is unknown, which is a fudge factor. 3D ground truth is only worth it if you see a flip, and you saw none.</p>
+<p>5. Jargon problems for a reader of the paper: &quot;ATE&quot;, &quot;STVL&quot;, &quot;MPPI&quot;, &quot;Smac Hybrid DUBIN&quot;, &quot;Force3DoF&quot; and &quot;start occupied&quot; are never defined. &quot;Dev split&quot; and &quot;test split&quot; are never explained for a robotics audience. A reviewer will also ask why a 600 s episode of one world is your unit of evidence.</p></div>
+ </details>
+
+ <details>
+ <summary>The Executor <span class="advisor-kind">Monday-morning lens</span></summary>
+ <div class="body"><p>Do option 1 plus a cheap slice of option 2, run on the dev split only. Skip 3, 4 and 5 entirely.</p>
+<p><strong>Classification (Monday, about 2 hours, no sim time).</strong> Pilot 2 stays a valid, failed episode. Headline ATE stays 3.10 m. Add three diagnostic keys computed from the existing raw data: <code>contact_odom_slip_deg</code> (232 vs 105 deg here), <code>ate_until_first_destructive_contact</code>, and <code>odom_corrupted_by_contact</code>. Use a hard-coded threshold, for example more than 15 deg of wheel-vs-GT yaw excess inside a contact window. Report the headline and the pre-contact numbers side by side. A &quot;55 % improvement until the second contact&quot; figure is a diagnostic, not a headline. If you exclude it from the headline, you are cherry-picking, and a Q1 reviewer will see it.</p>
+<p><strong>Option 3 is a trap.</strong> Your own facts say this is a real navigation failure. The stack drove into a chair it had forgotten. The slip is a symptom of that failure, not a simulator artefact. Invalidating it would also let the campaign hide every episode where the stack collides.</p>
+<p><strong>Options 4 and 5.</strong> Torque limits would be a guessed fudge factor with unknown real motor torque. A 3D ground-truth plugin and a tilt rule guard against something you saw zero of. Don&#x27;t build them.</p>
+<p><strong>Stack fix (do this before the test split, because a change afterwards forces a ~44 h rerun).</strong> The root cause is the 15 s local STVL decay, which loses obstacles the robot has just driven past. Make two changes:</p>
+<ul>
+<li>Put a stack-level guard in the BT so Spin and Wait recoveries are not run while in contact. Use BackUp first, or a clear-costmap plus BackUp sequence. This addresses the 90 deg Spin that caused the 113 deg yaw jump.</li>
+<li>Lengthen local STVL decay (for example 15 s to 60 s, matching the global costmap), or add the SLAM static layer to the local costmap.</li>
+</ul>
+<p>I can&#x27;t tell which of these actually fixes it, so test them as two cheap experiments, not one bundle.</p>
+<p><strong>Test.</strong> Rerun this exact apartment world, seed and start, with the change, for about 35 min wall. If chair_1 isn&#x27;t hit, proceed. The 209 &quot;no valid path&quot; messages and 4/26 goal success are the bigger problem. Spend an hour reading the &quot;start occupied&quot; cause (40 instances) before you launch the next episode. Those are probably inflation and footprint mismatch from the 0.08 m axle offset, and they&#x27;ll eat more campaign time than the collision does.</p>
+<p><strong>Then freeze the stack and log the deviations.</strong></p></div>
+ </details>
+
+ <p class="round-label">Round 2: Peer review</p>
+
+ <details>
+ <summary>Reviewer 1</summary>
+ <div class="body"><p>1. Strongest: C. It reframes correctly (the headline ATE measures nav-stack blindness here, not SLAM), dissolves the &quot;real vs artefact&quot; binary, and gives the most defensible reporting design. It treats the flag as a stratifier, reports the headline with and without flagged episodes, and uses cluster-bootstrap CIs so one episode can&#x27;t dominate the mean. It also says to disclose the stack change and keep pilot 2 in the paper.</p>
+<p>2. Biggest blind spot: B. It treats the episode as a &quot;gift&quot; and proposes new headline-grade metrics. It never questions the 4/26 goal success as a validity or stack problem beyond a passing mention. It also ignores the pre-registration constraint on redefining headlines and the n=1 confirmation risk. D covers that risk, and B skips it.</p>
+<p>3. Missed by all five:</p>
+<ul>
+<li>Nobody asked whether the contact threshold or flag definition should be pre-specified and logged before test runs, to avoid post-hoc tuning on this one episode.</li>
+<li>Nobody noted that the dev-fix changes the frozen stack, so pilot 1 and pilot 2 numbers aren&#x27;t comparable. They also didn&#x27;t point out that the STVL change made between pilots was itself an unlogged deviation.</li>
+<li>Nobody considered the planning mismatch from the 8 cm axle offset: Spin rotates about a point Nav2 doesn&#x27;t model, so even a correct footprint check can clip obstacles. A footprint or recovery-radius fix addresses this directly.</li>
+<li>Nobody proposed a cheap offline replay or fault injection (e.g. a synthetic slip applied to the logged odometry) to test how sensitive ATE is to contact before spending 35 min runs.</li>
+<li>Nobody addressed that SLAM never recovers from corrupted odometry. That is an RTAB-Map loop-closure or odometry-reset question, and it affects every collision episode.</li>
+</ul></div>
+ </details>
+
+ <details>
+ <summary>Reviewer 2</summary>
+ <div class="body"><p>1. Strongest: C. It reframes the question (what is the ATE headline supposed to measure?). It dissolves the &quot;real failure vs artefact&quot; binary, noting real motors also stall. It gives a concrete reporting rule: use the flag as a stratifier, never an exclusion, and report headline with and without flagged episodes using cluster-bootstrap CIs so one episode can&#x27;t dominate the mean. It also requires disclosing the stack change and keeping pilot 2 in the paper.</p>
+<p>2. Biggest blind spot: B. It treats the episode as a &quot;gift&quot; and proposes new headline-grade metrics. It never addresses the pre-registration constraint (redefining headlines needs a logged deviation). It never says how mean ATE stays robust to one 3 m outlier. It ignores the 40 &quot;start occupied&quot; messages as a possible footprint/axle-offset cause. It also suggests a paired ablation that costs 35 min per run, with no budget.</p>
+<p>3. Missed by all five:</p>
+<ul>
+<li>Whether MPPI/Nav2 should be tuned for the 8 cm axle offset. Spin rotates about an unmodelled point, so the Spin collision check is wrong even with a perfect costmap.</li>
+<li>The fix is validated only by the same seed and world, which risks tuning to the dev set. D noticed n=1 but none suggested held-out dev worlds or seeds.</li>
+<li>No one proposed a robust headline estimator (median or trimmed mean) or pre-registered the stratification before the test split.</li>
+<li>None asked whether SLAM should reject odometry that is inconsistent with visual-loop evidence. That would be a SLAM-side failure to report, not only a nav one.</li>
+</ul></div>
+ </details>
+
+ <details>
+ <summary>Reviewer 3</summary>
+ <div class="body"><p>1. Strongest: C. It reframes the question (what the headline ATE is meant to measure), dissolves the &quot;real failure vs artefact&quot; binary, and gives a concrete reporting rule: the flag is a stratifier and never an exclusion, headline reported with and without flagged episodes, cluster-bootstrap CIs so one episode can&#x27;t dominate the mean. It also says to disclose the stack change and keep pilot 2 in the paper.</p>
+<p>2. Biggest blind spot: B. It treats the failure as &quot;a gift&quot; and a paper contribution. It never addresses the n=1 confirmation weakness or the 4/26 goal-success problem as a gating item. It also proposes a &quot;contact-corruption rate&quot; headline-grade metric, which risks redefining headlines without logging the deviation the pre-registration requires. It never questions whether the proposed fixes work.</p>
+<p>3. Missed by all five:</p>
+<ul>
+<li>A bump-triggered or contact-triggered recovery. This is the root cause, because the stack lacks any contact-aware behavior. A contact-sensor-driven (or odometry-vs-IMU slip) stop/BackUp trigger is a stack feature, not a physics fudge.</li>
+<li>Whether the fix should depend on the robot&#x27;s blind rear and sides. Spin about an axle 8 cm behind <code>base_footprint</code> is a footprint/rotation-centre mismatch, which is a separate defect that the 40 &quot;start occupied&quot; messages may reflect.</li>
+<li>The ATE metric itself. Reporting per-segment or windowed ATE and relative pose error (RPE), which are robust to a single yaw jump, is a better answer than any flag.</li>
+<li>The need to pre-register the fix/freeze criteria (such as a collision-rate threshold) in the deviation log before touching the stack.</li>
+</ul></div>
+ </details>
+
+ <details>
+ <summary>Reviewer 4</summary>
+ <div class="body"><p>1. Strongest: C. It reframes the question (what does the ATE headline measure?), rejects the real-failure vs artefact binary, and gives a concrete reporting rule: the flag is a stratifier, never an exclusion. It also adds cluster-bootstrap CIs so one episode cannot dominate the mean, requires disclosing the stack change, and flags the 4/26 goal success.</p>
+<p>2. Biggest blind spot: B. It treats the episode as a gift and proposes new headline-grade metrics (&quot;contact-corruption rate&quot;, time-to-divergence). It never addresses the pre-registration constraint that headlines can&#x27;t be redefined without a logged deviation. It also never asks whether the single fix-and-rerun is enough evidence. It sells a paired ablation as a &quot;bonus&quot; without noting it needs more than n=1 episodes.</p>
+<p>3. Missed by all five:</p>
+<ul>
+<li>The robot&#x27;s rear-axle offset (axle 8 cm behind <code>base_footprint</code>) means Nav2 does not model the in-place-spin pivot. The footprint and collision checks are therefore likely wrong in exactly the spin case. A (briefly), and no one else, touched the offset, and only as a possible cause of &quot;start occupied&quot;. No one connected it to Spin collision.</li>
+<li>The forward-only camera means the robot can&#x27;t see its own rear and sides. A simple rear/side-aware fix (restrict spins, or a short-range persistent memory layer) is not discussed.</li>
+<li>The contact detector uses ground-truth contact. A real-world-valid odometry-corruption check should use only on-board signals (wheel vs IMU/SLAM yaw disagreement), or the paper&#x27;s flag isn&#x27;t deployable.</li>
+<li>No one proposes testing whether SLAM could have rejected the bad odometry (RTAB-Map loop-closure or covariance gating). SLAM &quot;never recovered&quot;, which is itself a SLAM-evaluation finding.</li>
+</ul></div>
+ </details>
+
+ <details>
+ <summary>Reviewer 5</summary>
+ <div class="body"><p>1. Strongest: C. It names the real issue (what the ATE headline is meant to measure) and rejects the &quot;real vs artefact&quot; binary with a concrete point: real motors stall too, so the artefact is one of degree. It also gives the best statistical safeguard: the flag is a stratifier, never an exclusion rule. It reports the headline with and without flagged episodes and uses cluster-bootstrap CIs so one episode can&#x27;t dominate the mean. It also tells the user to disclose the stack change.</p>
+<p>2. Biggest blind spot: E. It spends a point on jargon and has no safeguard against one collision dominating the ATE mean. It proposes no diagnostic keys, no <code>odom_corrupted_by_contact</code> flag, and no with/without reporting. That is most of option 1 and the paper&#x27;s central stakes.</p>
+<p>3. Missed by all five:</p>
+<ul>
+<li>Spin recovery cannot be fully fixed by blocking it only &quot;while in contact&quot;. The chair was absent from the local costmap, so a contact signal is needed. Nobody proposes using Gazebo&#x27;s contact sensor or odometry-vs-IMU/GT divergence at runtime as the trigger.</li>
+<li>The robot&#x27;s wheel axle is 8 cm behind <code>base_footprint</code>, so in-place spins rotate about a point Nav2 does not model. The footprint and recovery geometry issue is unaddressed. Only A mentions it in passing, for &quot;start occupied&quot;.</li>
+<li>No one flags that changing the stack (STVL decay, recovery BT) after seeing pilot 2 makes the dev/test split&#x27;s tuning an explicit deviation to pre-register. They also don&#x27;t ask for the pre-contact ATE to be pre-specified as a secondary metric before test runs.</li>
+<li>Nobody notes that RTAB-Map&#x27;s SLAM could be given loop-closure or visual-odometry robustness. The SLAM never recovered from corrupted odometry.</li>
+</ul></div>
+ </details>
+
+ <footer>
+ Generated by the <code>llm-council</code> skill on 22 October 2026, 03:19.
+ Full transcript and anonymization map in
+ <code>council-transcript.md</code>.
+ </footer>
+
+</div>
+</body>
+</html>

@@ -18,16 +18,19 @@ Governing decisions (council verdict):
 | 6 | est pose looked up at GT stamp; wall-clock stamps; responsiveness redefined | critic 1.5, 2 | DONE |
 | 7 | Known-answer oracle tests (found +20 % swept-area edge bias, fixed) | council blind spot 1 | DONE (113 tests pass) |
 | 8 | RTAB-Map STMSize 10, MinInliers 10, FeatureType = detector, Force3DoF | critic 1.1 | DONE |
-| 9 | Pilot: 600 s apartment episode through the full harness | council one-thing | RUNNING |
-| 10 | Pre-registration + dev/test split of worlds and seeds; campaign files (long exploration episodes, many scripted goals per nav episode) | critic 7, council blind spot 2 | TODO (agent B) |
-| 11 | Statistics: per-episode units, cluster bootstrap CIs, sample-size planner from target CI width | critic 1.7, council | TODO (agent A) |
-| 12 | Localization ablation: navigation tests with GT localization vs AMCL vs SLAM | critic 5 | TODO (agent C) |
-| 13 | Exact polygon collision test (robot rectangle vs SDF boxes/cylinders) replacing grid fallback; tighter loop-closure truth tolerances | critic 1.8, 5 | TODO (agent D) |
-| 14 | Distinct textures per room/wall (avoid perceptual aliasing); per-run embedded world path (no shared /tmp file) | critic 1.1, 4 | TODO (agent E) |
-| 15 | Costmap ghost obstacles outside 87 deg FOV: spatio-temporal voxel layer with decay (installed 2026-10-21) | critic 4/5 | TODO (agent F) |
+| 9 | Pilot: 600 s apartment episode through the full harness | council one-thing | DONE (pilot1 valid; pilot2 valid, analysed in R1 -> items 19-21) |
+| 10 | Pre-registration + dev/test split of worlds and seeds; campaign files (long exploration episodes, many scripted goals per nav episode) | critic 7, council blind spot 2 | DONE 2026-10-21 |
+| 11 | Statistics: per-episode units, cluster bootstrap CIs, sample-size planner from target CI width | critic 1.7, council | DONE 2026-10-21 |
+| 12 | Localization ablation: navigation tests with GT localization vs AMCL vs SLAM | critic 5 | DONE 2026-10-21 |
+| 13 | Exact polygon collision test (robot rectangle vs SDF boxes/cylinders) replacing grid fallback; tighter loop-closure truth tolerances | critic 1.8, 5 | DONE 2026-10-21 |
+| 14 | Distinct textures per room/wall (avoid perceptual aliasing); per-run embedded world path (no shared /tmp file) | critic 1.1, 4 | DONE 2026-10-21 |
+| 15 | Costmap ghost obstacles outside 87 deg FOV: spatio-temporal voxel layer with decay (installed 2026-10-21) | critic 4/5 | DONE 2026-10-21 |
 | 16 | evo cross-check of ATE/RPE | critic 5 | DEFERRED (oracle tests cover ATE math) |
-| 17 | Bag-replay end-to-end test from the pilot run | critic 8 | TODO after pilot |
+| 17 | Bag-replay end-to-end test from the pilot run | critic 8 | TODO (user runs; runbook) |
 | 18 | Consolidate docs (METRICS_TO_BE_MEASURED one-sentence definitions, spec README status) | council (Outsider) | TODO (orchestrator) |
 | - | Coverage planner (boustrophedon / opennav_coverage), benchmark release | council Expansionist | OVERRULED for now, revisit after a valid campaign |
 | - | Smac REEDS_SHEPP / Lattice | critic 5 | OUT OF SCOPE (user: planner unchanged) |
 | - | Camera 320x240 for speed | critic 3 | DEFERRED, decide after pilot RTF |
+| 19 | Pilot-2 contact-induced odometry corruption (R1, 2026-10-22). Verdict (council `council/2026-10-22-031950/`): real navigation failure, not a simulator artefact or a recording bug; episode stays valid and failed; diagnostic keys `odom_corrupted_by_contact` etc. are a stratifier, never an exclusion; local-costmap static layer + BackUp before Spin; no torque limits (unknown motor torque = fudge factor); no 3D-GT tilt rule (none observed). Confirm on 2 dev episodes (seeds 2 and 1); stop rule: no corruption flag and no Spin in contact | council | CODE DONE; confirmation runs pending (user executes) |
+| 20 | Axle 8 cm behind `base_footprint`: Spin/MPPI collision checks rotate about the wrong point (council blind spot) | council reviewers | OPEN, documented limitation |
+| 21 | RTAB-Map never recovered from the corrupted odometry (280 s, yaw error 117-123 deg) | council reviewers | REPORT as a SLAM finding |

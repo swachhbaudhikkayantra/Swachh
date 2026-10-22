@@ -9,3 +9,4 @@ seeds: [101, 102, 103]
 odom_noise: [0]
 timeout_sim_sec: 300
 headless: 1
+# optional: parallel: K (slots; CLI --parallel overrides), lean: 1, gpu: 0

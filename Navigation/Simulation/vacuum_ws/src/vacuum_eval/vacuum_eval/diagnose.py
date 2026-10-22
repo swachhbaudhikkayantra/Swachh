@@ -200,6 +200,14 @@ def main(argv=None):
     if not causes:
         print('   nothing stands out')
 
+    if any(k.startswith('health_') for k in sm):
+        print('\n7. METRIC HEALTH (ok=%s bad=%s suspect=%s unmeasurable=%s)' % (
+            sm.get('health_n_ok'), sm.get('health_n_bad'), sm.get('health_n_suspect'),
+            sm.get('health_n_unmeasurable')))
+        for k in sorted(sm):
+            if k.startswith('health_') and not k.endswith('_reasons') and not k.startswith('health_n_'):
+                print('   %-28s %-13s %s' % (k[7:], sm[k], ', '.join(sm.get(k + '_reasons') or [])))
+
     if a.png:
         import matplotlib
         matplotlib.use('Agg')

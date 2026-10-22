@@ -1,6 +1,6 @@
 # Metrics To Be Measured (simulation)
 
-Audience: Claude agents (and humans) picking up the evaluation work. Read this together with `docs/HANDOFF.md` (environment, known bugs) before writing any code.
+Audience: Claude agents (and humans) picking up the evaluation work. Start with `docs/REQUIREMENTS.md` (environment, constraints, open requirements); live measurement status is in `docs/METRICS_STATUS.md` (the Status column below is historical, day 1).
 
 **Goal:** measure the metrics below for the Swachh cleaning robot in simulation (ROS 2 Jazzy + Gazebo Harmonic, workspace `Navigation/Simulation/vacuum_ws`), per run, into CSV files that can feed the Q1 paper.
 
@@ -116,7 +116,7 @@ Existing apartment, office and corridor (sealed) stay as the realistic set.
 
 ## 7. Experiment design
 
-- Scale: ~3 worlds × 4 methods × 10 seeds ≈ 120 episodes (not the 486-run grid in `q1_paper_test_roadmap.md`, which assumes a LiDAR TurtleBot; LiDAR rows do not apply here).
+- Scale: ~3 worlds × 4 methods × 10 seeds ≈ 120 episodes (not the 486-run LiDAR-TurtleBot grid of the retired q1_paper_test_roadmap; LiDAR rows do not apply here).
 - Report mean ± std and 95 % CI. Compare methods with Wilcoxon / Mann-Whitney.
 - Each episode runs in real time (plausibly 10–20 min on this laptop); batch headless.
 - Robustness runs: repeat with odometry noise and camera noise ON.

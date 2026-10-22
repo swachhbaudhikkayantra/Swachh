@@ -1,6 +1,7 @@
 """Loop-closure precision / recall from loop_events.csv (docs/specs/08)."""
 
 import math
+import os
 from typing import Dict, List, Set, Tuple
 
 import numpy as np
@@ -26,11 +27,48 @@ def rel_se2(pa, pb):
     return c * dx + s * dy, -s * dx + c * dy, wrap_angle(pb[3] - pa[3])
 
 
-def _reg_correct(pa, pb, tf, trans_tol, rot_tol) -> bool:
-    """tf = (tx, ty, tyaw) from ref (pa) to loop node (pb), pose_b = pose_a * T."""
+CONVENTIONS = ('ref_to_loop', 'loop_to_ref')
+
+
+def default_convention(run=None) -> str:
+    """lc_transform_convention from the run's meta config_snapshot, else eval_defaults.yaml."""
+    cands = []
+    meta = getattr(run, 'meta', None) or {}
+    if isinstance(meta, dict):
+        snap = meta.get('config_snapshot')
+        if isinstance(snap, dict):
+            cands.append(snap)
+    try:
+        import yaml
+        here = os.path.dirname(os.path.abspath(__file__))
+        for up in ('..', '../..'):
+            p = os.path.normpath(os.path.join(here, up, 'config', 'eval_defaults.yaml'))
+            if os.path.exists(p):
+                with open(p) as f:
+                    cands.append(yaml.safe_load(f) or {})
+                break
+    except Exception:
+        pass
+    for c in cands:
+        v = c.get('lc_transform_convention')
+        if v in CONVENTIONS:
+            return v
+    return 'ref_to_loop'
+
+
+def expected_tf(pa, pb, convention='ref_to_loop'):
+    """Transform GT predicts for the recorded columns under `convention`."""
+    if convention == 'loop_to_ref':
+        return rel_se2(pb, pa)
+    return rel_se2(pa, pb)
+
+
+def _reg_correct(pa, pb, tf, trans_tol, rot_tol, convention='ref_to_loop') -> bool:
+    """ref_to_loop: tf maps ref (pa) to loop node (pb), pose_b = pose_a * T.
+    loop_to_ref: recorded tf is the inverse, pose_a = pose_b * T."""
     if any(math.isnan(v) for v in pa[1:] + pb[1:] + tuple(tf)):
         return False
-    gx, gy, gyaw = rel_se2(pa, pb)
+    gx, gy, gyaw = expected_tf(pa, pb, convention)
     return (math.hypot(gx - tf[0], gy - tf[1]) <= trans_tol
             and abs(wrap_angle(gyaw - tf[2])) <= rot_tol)
 
@@ -81,12 +119,18 @@ def revisit_episodes(nodes, pos_tol, yaw_tol, min_gap_s) -> List[Set[int]]:
 def compute_loop_closure_metrics(run: Run, pos_tol_m: float = LC_POS_TOL_M,
                                  yaw_tol_deg: float = LC_YAW_TOL_DEG,
                                  reg_trans_tol_m: float = LC_REG_TRANS_TOL_M,
-                                 reg_rot_tol_deg: float = LC_REG_ROT_TOL_DEG) -> dict:
+                                 reg_rot_tol_deg: float = LC_REG_ROT_TOL_DEG,
+                                 convention=None) -> dict:
     keys = ['lc_n_info_msgs', 'lc_n_nodes', 'lc_n_accepted', 'lc_n_true', 'lc_n_false',
             'lc_n_revisits', 'lc_n_revisits_detected', 'lc_precision_pct', 'lc_recall_pct',
             'lc_f1_pct', 'n_proximity_links', 'lc_per_100m',
             'lc_n_true_loose', 'lc_n_false_loose', 'lc_precision_loose_pct',
-            'lc_precision_samepose_pct', 'lc_n_true_samepose']
+            'lc_precision_samepose_pct', 'lc_n_true_samepose',
+            'lc_rot_err_median_deg', 'lc_trans_err_median_m']
+    if convention is None:
+        convention = default_convention(run)
+    if convention not in CONVENTIONS:
+        raise ValueError('unknown lc_transform_convention %r' % (convention,))
     out = {k: None for k in keys}
     notes: List[str] = []
     out['notes'] = notes
@@ -122,17 +166,27 @@ def compute_loop_closure_metrics(run: Run, pos_tol_m: float = LC_POS_TOL_M,
     out['lc_precision_samepose_pct'] = 100.0 * len(same) / len(acc) if acc else None
     true_pairs = set()
     n_fallback = 0
+    rot_errs: List[float] = []
+    trans_errs: List[float] = []
     for a, b in acc:
         if a not in all_nodes or b not in all_nodes:
             continue
         if (a, b) in tfs:
+            pa, pb, tf = all_nodes[a], all_nodes[b], tfs[(a, b)]
+            if not any(math.isnan(v) for v in pa[1:] + pb[1:]):
+                gx, gy, gyaw = expected_tf(pa, pb, convention)
+                trans_errs.append(math.hypot(gx - tf[0], gy - tf[1]))
+                rot_errs.append(math.degrees(abs(wrap_angle(gyaw - tf[2]))))
             if _reg_correct(all_nodes[a], all_nodes[b], tfs[(a, b)], reg_trans_tol_m,
-                            math.radians(reg_rot_tol_deg)):
+                            math.radians(reg_rot_tol_deg), convention):
                 true_pairs.add((a, b))
         else:
             n_fallback += 1
             if (a, b) in same:
                 true_pairs.add((a, b))
+    if rot_errs:
+        out['lc_rot_err_median_deg'] = float(np.median(rot_errs))
+        out['lc_trans_err_median_m'] = float(np.median(trans_errs))
     if n_fallback:
         notes.append('lc truth: %d/%d closures lack lc_tx/ty/tyaw; used position tolerance '
                      '(%.2f m/%g deg) for them' % (n_fallback, len(acc), pos_tol_m, yaw_tol_deg))

@@ -13,13 +13,13 @@ from collections import defaultdict
 import numpy as np
 from scipy import stats
 
-GROUP_KEYS = ('world', 'method', 'odom_noise')
+GROUP_KEYS = ('world', 'method', 'odom_noise', 'gpu', 'lean')
 ID_COLS = set(GROUP_KEYS) | {'seed', 'status', 'notes', 'experiment', 'end_reason'}
 RATE_PAIRS = [('nav_goals_succeeded', 'nav_goals_total'),
               ('trial_success', None),
               ('lc_n_true', 'lc_n_accepted'),
               ('resp_n_met', 'resp_n_events')]
-OUT_COLS = ['kind', 'world', 'method', 'odom_noise', 'metric', 'n', 'mean', 'std',
+OUT_COLS = ['kind', 'world', 'method', 'odom_noise', 'gpu', 'lean', 'metric', 'n', 'mean', 'std',
             'median', 'min', 'max', 'ci95_halfwidth', 'cv', 'n_failed', 'n_invalid',
             'boot_ci_lo', 'boot_ci_hi', 'pooled_pct', 'cluster_ci_lo', 'cluster_ci_hi',
             'n_episodes', 'wilson_naive_lo_pct', 'wilson_naive_hi_pct', 'wilson_note',
@@ -138,12 +138,43 @@ def _num(x):
         return None
 
 
+def _flag(v):
+    try:
+        return '1' if float(v) else '0'
+    except (TypeError, ValueError):
+        return '0'
+
+
+def _read_meta(path):
+    try:
+        import yaml
+        with open(path) as f:
+            d = yaml.safe_load(f)
+        return d if isinstance(d, dict) else {}
+    except Exception:
+        d = {}
+        try:
+            for line in open(path):
+                if ':' in line and not line.startswith((' ', '#')):
+                    k, v = line.split(':', 1)
+                    d[k.strip()] = v.strip()
+        except OSError:
+            pass
+        return d
+
+
 def load_summaries(root):
     rows = []
     for p in sorted(glob.glob(os.path.join(root, '**', 'summary.csv'), recursive=True)):
+        meta = None
         with open(p, newline='') as f:
             for r in csv.DictReader(f):
                 r['_path'] = p
+                if meta is None:
+                    meta = _read_meta(os.path.join(os.path.dirname(p), 'run_meta.yaml'))
+                for k in ('gpu', 'lean'):
+                    if r.get(k) in (None, ''):
+                        r[k] = meta.get(k, 0)
                 rows.append(r)
     return rows
 
@@ -165,7 +196,8 @@ def aggregate(rows, paired_by=None, seed=12345, B=BOOT_B):
     keys = _numeric_keys(rows)
     groups = defaultdict(list)
     for r in rows:
-        groups[tuple(r.get(k, '') for k in GROUP_KEYS)].append(r)
+        groups[tuple(_flag(r.get(k)) if k in ('gpu', 'lean') else r.get(k, '')
+                     for k in GROUP_KEYS)].append(r)
     gstat = {}
     for gk in sorted(groups):
         allr = groups[gk]
@@ -211,14 +243,14 @@ def aggregate(rows, paired_by=None, seed=12345, B=BOOT_B):
     comps = []
     wn = defaultdict(list)
     for gk in sorted(groups):
-        wn[(gk[0], gk[2])].append(gk[1])
-    for (w, nz), methods in sorted(wn.items()):
+        wn[(gk[0], gk[2], gk[3], gk[4])].append(gk[1])
+    for (w, nz, gpu, lean), methods in sorted(wn.items()):
         for i in range(len(methods)):
             for j in range(i + 1, len(methods)):
                 ma, mb = methods[i], methods[j]
                 for k in keys:
-                    _, ra = gstat[((w, ma, nz), k)]
-                    _, rb = gstat[((w, mb, nz), k)]
+                    _, ra = gstat[((w, ma, nz, gpu, lean), k)]
+                    _, rb = gstat[((w, mb, nz, gpu, lean), k)]
                     if paired_by:
                         da = {r.get(paired_by): _num(r.get(k)) for r in ra}
                         db = {r.get(paired_by): _num(r.get(k)) for r in rb}
@@ -236,7 +268,7 @@ def aggregate(rows, paired_by=None, seed=12345, B=BOOT_B):
                     c = compare_methods(a, b, paired)
                     ntests += 1
                     comps.append(dict(kind='compare', world=w, method=ma, method_b=mb,
-                                      odom_noise=nz, metric=k, n=int(min(a.size, b.size)),
+                                      odom_noise=nz, gpu=gpu, lean=lean, metric=k, n=int(min(a.size, b.size)),
                                       **c))
     adj = holm_adjust([c['p_value'] for c in comps])
     for c, pa in zip(comps, adj):
@@ -244,12 +276,12 @@ def aggregate(rows, paired_by=None, seed=12345, B=BOOT_B):
         c['p_holm'] = float(pa)
     out.extend(comps)
     # noise delta
-    for (w, m) in sorted({(g[0], g[1]) for g in groups}):
+    for (w, m, gpu, lean) in sorted({(g[0], g[1], g[3], g[4]) for g in groups}):
         for k in keys:
-            s0 = gstat.get(((w, m, '0'), k))
-            s1 = gstat.get(((w, m, '1'), k))
+            s0 = gstat.get(((w, m, '0', gpu, lean), k))
+            s1 = gstat.get(((w, m, '1', gpu, lean), k))
             if s0 and s1 and s0[0]['mean'] is not None and s1[0]['mean'] is not None:
-                out.append(dict(kind='noise_delta', world=w, method=m, metric='delta_' + k,
+                out.append(dict(kind='noise_delta', world=w, method=m, gpu=gpu, lean=lean, metric='delta_' + k,
                                 delta=s1[0]['mean'] - s0[0]['mean']))
     return out
 

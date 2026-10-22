@@ -1,4 +1,4 @@
-#!/usr/bin/env python3.12
+#!/usr/bin/env python3
 """
 exploration_manager.py  —  Stage 4B: Autonomous Exploration Orchestrator
 ─────────────────────────────────────────────────────────────────────────
