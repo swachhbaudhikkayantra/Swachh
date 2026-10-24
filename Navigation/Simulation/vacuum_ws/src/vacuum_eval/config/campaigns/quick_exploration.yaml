@@ -1,0 +1,12 @@
+# 8-HOUR PLAN (docs/EIGHT_HOUR_PLAN.md). Reduced test campaign: 3 worlds x 5 seeds, odom noise on, 450 s sim.
+# 15 episodes; est. ~10 min each at RTF 0.9 -> ~2.6 h serial, ~1.4 h with --parallel 2.
+experiment: quick_exploration
+split: test
+worlds: [office, multi_room_loop, maze_dead_ends]
+methods: [frontier]
+seeds: [101, 102, 103, 104, 105]
+odom_noise: [1]
+timeout_sim_sec: 450
+headless: 1
+lean: 1
+gpu: 0

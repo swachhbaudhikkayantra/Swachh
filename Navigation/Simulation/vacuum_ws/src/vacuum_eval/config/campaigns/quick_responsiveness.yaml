@@ -1,0 +1,13 @@
+# 8-HOUR PLAN (docs/EIGHT_HOUR_PLAN.md). Reduced test campaign: bare + loaded stack x 2 seeds.
+# 4 episodes; est. ~5.5 min each -> ~22 min serial, ~12 min with --parallel 2.
+experiment: quick_responsiveness
+split: test
+worlds: [office]
+methods: [responsiveness]
+stacks: [bare, loaded]
+seeds: [101, 102]
+odom_noise: [0]
+timeout_sim_sec: 300
+headless: 1
+lean: 1
+gpu: 0

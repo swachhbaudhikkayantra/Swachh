@@ -1,0 +1,14 @@
+# 8-HOUR PLAN (docs/EIGHT_HOUR_PLAN.md). Reduced test campaign: 1 static + 1 dynamic scenario x 5 trials.
+# 10 episodes; est. ~4.5 min each -> ~45 min serial, ~25 min with --parallel 2.
+experiment: quick_avoidance
+split: test
+worlds: [avoid_u_trap, avoid_dynamic_sudden]
+methods: [scripted_goals]
+nav_maps: [gt]
+goal_lists: [scenario]
+seeds: [101, 102, 103, 104, 105]
+odom_noise: [0]
+timeout_sim_sec: 300
+headless: 1
+lean: 1
+gpu: 0

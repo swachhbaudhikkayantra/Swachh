@@ -1,0 +1,15 @@
+# 8-HOUR PLAN (docs/EIGHT_HOUR_PLAN.md). Reduced test campaign: 3 worlds x random20 x 4 seeds, GT nav map, 900 s cap.
+# 12 episodes (~240 goals); est. ~15 min each -> ~3 h serial, ~1.6 h with --parallel 2.
+# Serial fallback (no parallel): use seeds [101, 102, 103] (edit before starting, log it in 13_preregistration 13.6).
+experiment: quick_navigation
+split: test
+worlds: [office, two_rooms_door, maze_dead_ends]
+methods: [scripted_goals]
+nav_maps: [gt]
+goal_lists: [random20]
+seeds: [101, 102, 103, 104]
+odom_noise: [0]
+timeout_sim_sec: 900
+headless: 1
+lean: 1
+gpu: 0
