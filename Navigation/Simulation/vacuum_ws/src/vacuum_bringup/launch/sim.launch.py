@@ -253,7 +253,13 @@ def generate_launch_description():
             tree.write(gz_args_world)
             log_msg = LogInfo(msg='Baked world written to ' + gz_args_world)
         headless_on = LaunchConfiguration('headless').perform(context).lower() == 'true'
-        gz_args = ('-r -s ' if headless_on else '-r ') + \
+        # VACUUM_GZ_HEADLESS_RENDERING=1: EGL headless rendering for the camera on machines
+        # without a display (e.g. a GPU workstation over SSH). Off by default: it segfaults on WSL.
+        if headless_on and os.environ.get('VACUUM_GZ_HEADLESS_RENDERING') == '1':
+            headless_on_args = '-r -s --headless-rendering '
+        else:
+            headless_on_args = '-r -s '
+        gz_args = (headless_on_args if headless_on else '-r ') + \
             LaunchConfiguration('gz_verbose').perform(context) + ' ' + gz_args_world
         gz_include = IncludeLaunchDescription(
             PythonLaunchDescriptionSource(

@@ -4,7 +4,7 @@
 **Last updated:** 2026-10-21, ~19:30. Pilot 2 was still running at the time of writing (see §6).
 
 Read in this order:
-0. `docs/RUNBOOK.md`: exact commands for everything left to execute (the user runs them; code complete as of 2026-10-22). `docs/FAILURE_MODES.md`: what to do when a metric is bad or unmeasurable (health codes in summary.json).
+0. `docs/ANTIGRAVITY_HANDOFF.md`: handoff for the Antigravity agent on the GPU workstation. `docs/RUNBOOK.md`: exact commands for everything left to execute (the user runs them; code complete as of 2026-10-22). `docs/FAILURE_MODES.md`: what to do when a metric is bad or unmeasurable (health codes in summary.json).
 1. This file.
 2. `docs/METRICS_STATUS.md`: what has actually been measured. This is the live tracker.
 3. `docs/specs/13_preregistration.md`: the frozen final definitions and campaign rules.
