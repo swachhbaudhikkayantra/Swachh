@@ -33,3 +33,4 @@ t,t_rel,src,goal_seq,event,result,x,y,nav2_error_code,uuid
 204.992000,188.016000,scripted,7,ended,succeeded,0.025000,-2.625000,0,
 206.000000,189.024000,scripted,8,started,started,-3.125000,-0.275000,,
 206.008000,189.032000,nav2_status,,executing,,,,,8e2371ff717f452b989bdbd57510e90b
+268.532000,251.556000,behavior_spin,,executing,,,,,86d2b83dafd3fa792c3a0c3910446ab5
