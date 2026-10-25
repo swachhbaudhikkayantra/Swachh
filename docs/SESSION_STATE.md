@@ -1,6 +1,6 @@
 # >>> CURRENT STATE 2026-10-25 ~20:12 IST (read this first) <<<
 - **Test campaign DONE** (31 episodes, Phase D verified; reports in `~/eval_runs/quick_*/report/`, status in `METRICS_STATUS.md`, findings and audits in `EVALUATION_FINDINGS_2026-10-25.md`). Freeze commit 92c7757; results snapshots committed locally; nothing pushed.
-- **Navigation v2 (user request 19:51):** opt-in variant (`VACUUM_NAV_VARIANT=v2`: START_OCCUPIED BackUp+Spin recovery BT + AMCL more particles/updates), commit 10b6b11; v1 default unchanged. Dev A/B on apartment dev seeds 1-2 (`dev_navab_v1`, `dev_navab_v2`, script `~/eval_setup/navab.sh`) judged by the pre-fixed rule in EXECUTION_LOG ("NAV v2 DEV A/B DECISION RULE"). Test seeds 105/106 only if the rule passes.
+- **Navigation v2 (user request 19:51):** opt-in variant (`VACUUM_NAV_VARIANT=v2`: START_OCCUPIED BackUp+Spin recovery BT + AMCL more particles/updates), commit 10b6b11; v1 default unchanged. Dev A/B on apartment dev seeds 1-2 (`dev_navab_v1`, `dev_navab_v2`, script `~/eval_setup/navab.sh`) **RESULT 20:16: rule FAILED (START_OCCUPIED 247 vs 260; seed 2 worse) -> stopped, no test-split v2 runs.** v1 results stand.
 - Owner clean-up after the run: see "After the run" in REMOTE_MACHINE.md.
 
 # >>> RESUMED 17:53 (was paused 17:29:54; see EXECUTION_LOG) <<<

@@ -103,7 +103,7 @@
 4. **Robot model (user decision):**
    - Set the depth HFOV to 86 deg, or document 69 deg.
    - Treat the axle offset in odometry/TF.
-5. **Navigation BT:** a START_OCCUPIED recovery that actually moves the robot. Being tested as "nav v2", see `EXECUTION_LOG.md`. First observation: BackUp often aborts with "Collision Ahead" when the footprint already touches the wall in the local costmap.
+5. **Navigation BT:** a START_OCCUPIED recovery that actually moves the robot. **Tested as "nav v2" (BackUp 0.15 m + Spin, plus AMCL 1000-3000 particles and 0.10 m / 0.10 rad updates) on a dev A/B: it FAILED the pre-fixed rule.** Pooled GT success went from 16 % (4/25) to 31 % (9/29), but START_OCCUPIED was not reduced (247 vs 260) and seed 2 was worse (1 vs 3 GT goals). BackUp mostly aborts with "Collision Ahead" when the footprint already touches the wall. Not run on the test split. A recovery that works needs a different mechanism, e.g. a collision-check-free short reverse, or relocalization, decided and pre-registered separately.
 6. **Explorer:**
    - A stall fallback: after N failed snaps, rotate 360 deg or drive briefly.
    - In `_snap_goal`, measure clearance from occupied cells only (an explorer contract decision).
