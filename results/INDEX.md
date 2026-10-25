@@ -1,4 +1,4 @@
-# Results index (auto-generated 2026-10-25 20:43)
+# Results index (auto-generated 2026-10-25 20:45)
 
 Light snapshot of `~/eval_runs` (no bags, no rtabmap.db). Full data stays on victus. Test-split campaigns are `quick_*`; `dev8h_*` are Phase A dev checks (not pooled); `_failed_attempts` are attempt-1 infra failures.
 
