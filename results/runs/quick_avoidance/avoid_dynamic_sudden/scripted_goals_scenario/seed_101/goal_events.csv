@@ -1,0 +1,7 @@
+t,t_rel,src,goal_seq,event,result,x,y,nav2_error_code,uuid
+31.872000,12.816000,scripted,1,started,started,2.000000,0.000000,,
+31.872000,12.816000,nav2_status,,executing,,,,,81e62570644543fbad9e3de13d885ccd
+97.880000,78.824000,behavior_spin,,executing,,,,,c31d1ad99aad59dc9caead201a55cb4b
+100.504000,81.448000,behavior_spin,,succeeded,,,,,c31d1ad99aad59dc9caead201a55cb4b
+103.632000,84.576000,scripted,1,ended,succeeded,2.000000,0.000000,0,
+103.656000,84.600000,nav2_status,,succeeded,,,,,81e62570644543fbad9e3de13d885ccd

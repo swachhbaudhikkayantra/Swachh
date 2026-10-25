@@ -1,0 +1,22 @@
+t,t_rel,event,detail
+,,harness_started,
+,,gate_ok,G1_clock
+,,gate_ok,G2_controllers
+,,gate_ok,G3_gt_odom
+,,gate_ok,G5_nav
+,,recorder_started,/home/hrishikesh/eval_runs/quick_avoidance/avoid_dynamic_sudden/scripted_goals_scenario/seed_102
+23.580000,0.156000,first_gt_sample,23.424000
+25.376000,1.952000,first_est_sample,25.272000
+,,amcl_initial_pose_sent,-1.935 0.053 0.012
+,,gate_ok,G4_tf
+,,gate_ok,G6_map_server
+40.856000,17.432000,episode_start,40.856000
+,,rtabmap_stalled,loop_events.csv not growing for 20 s
+80.100000,56.676000,finished_signal,eval_done
+,,stopping,goals_done
+82.964000,59.540000,stop_received,82.964000
+82.964000,59.540000,final_map_missing,no /rtabmap/map received
+82.964000,59.540000,contact_publishers,3
+82.964000,59.540000,contact_topic_alive,0
+82.964000,59.540000,ground_contacts_dropped,0
+82.964000,59.540000,recorder_stopped,82.964000

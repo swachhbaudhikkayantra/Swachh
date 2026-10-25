@@ -1,0 +1,5 @@
+t,t_rel,src,goal_seq,event,result,x,y,nav2_error_code,uuid
+33.388000,16.952000,scripted,1,started,started,2.000000,0.000000,,
+33.396000,16.960000,nav2_status,,executing,,,,,46b6f7d3931944ee9aa9e9a91f72d9d7
+51.792000,35.356000,nav2_status,,succeeded,,,,,46b6f7d3931944ee9aa9e9a91f72d9d7
+51.796000,35.360000,scripted,1,ended,succeeded,2.000000,0.000000,0,

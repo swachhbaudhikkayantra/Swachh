@@ -97,3 +97,20 @@ User decisions (asked with AskUserQuestion): (1) apply goal-start tolerance, (2)
 - Dev check (`compute_metrics` rerun on `dev8h_avoid_fix`; old summaries kept as `summary.prefix.json`): avoid_head_on and avoid_dynamic_cross `trial_success` None -> 0, health UNMEASURABLE -> OK, nav_goals_total 0 -> 1.
 - Finding (not a bug, reported as measured): trial_success = 0 in both dev scenarios while Nav2 says the goal succeeded. avoid_head_on: odometry accurate (ATE 0.029 m), robot stopped about 0.27 m short of goal (2.0, 0.0), outside the GT tolerance but inside Nav2's: a genuine near-miss, flagged SUSPECT NAV_GT_DIVERGENCE. avoid_dynamic_cross: 2 collisions, odometry corrupted by contact (yaw RMSE 62 deg). No frame offset.
 - Resume at 17:54: see RESUME entry above; deadline 2026-10-25T20:52:46+05:30.
+
+## 2026-10-25 17:54 IST PHASE B FREEZE: local commit 92c7757ed13f00f0f039a14aa9ddd7739f514f56 (nothing pushed). No code/config changes after this point.
+
+## 2026-10-25 18:09 IST C0 quick_responsiveness DONE (test split, post-freeze 92c7757)
+- Batch 17:55-18:00 with `--parallel 3`: loaded/101 ok (slot 1, domain 11, rtf 0.963, cmd->motion 171.7 ms, stop 270.4 ms); bare/102 invalid by design (slot 2: RTAB-Map rules, rtf 0.926, 179.5 ms); bare/101 and loaded/102 (both slot 0) `failed bringup_failed` at G1_clock = **infrastructure fault**.
+- Cause: `ros2` daemon for domain 0 (pid 46144, started 16:22 before the Wi-Fi change) unresponsive (`ros2 daemon stop` hung; SIGTERM ignored), so `ros2 topic echo /clock` never resolved the type. Slots 1/2 had fresh daemons. Fix: force-killed daemon by PID (environment only; no code/config change); fresh daemon respawned.
+- Rerun once, same seeds, serial slot 0 (tmux C0r, 18:03-18:08): bare/101 invalid by design (rtf 1.0, 162.5 ms); loaded/102 ok (rtf 1.0, img_drop 0, cmd->motion 160.4 ms, stop 249.7 ms). Attempt-1 folders preserved in `~/eval_runs/_failed_attempts/quick_responsiveness/` (excluded from stats; both attempts reported). bare/102 not rerun (invalid by RTAB-Map rules, not infra).
+- Result: 4 episodes, 2 valid (loaded), 2 invalid (bare, user decision: keep as is). Metric 5 therefore comes from the loaded stack only (n=2).
+- Caveat: attempt-1 latencies of concurrent runs (172-180 ms) vs serial reruns (160-162 ms): contention inflates wall-clock latency by roughly 5-10%. loaded/101 ran concurrently, loaded/102 serially.
+- Parallel check (slots 1/2): distinct domains 11/12 and partitions vacuum_slot1/2; rtf 0.93-0.96; img_drop 0. Slot 0 failure not parallelism-related. Next: C1 avoidance with `--parallel 3`.
+
+## 2026-10-25 18:14 IST C1 quick_avoidance DONE (test split, --parallel 3, 18:09-18:13)
+- 6/6 episodes ok and valid (avoid_u_trap 101-103, avoid_dynamic_sudden 101-103). img_drop 0-1.3%. Slots 0/1/2 on domains 0/11/12; every trajectory.csv is one continuous robot path (max GT step 0.08 m); no cross-talk.
+- rtf_true_mean: u_trap 1.00/1.00/0.997; dynamic_sudden 0.85/0.81/0.80 (3 concurrent). All >= 0.7. GPU max 66 C (guard NORMAL), no thermal flag.
+- trial_success: u_trap 1/1/1; dynamic_sudden 0/0/1 (seed 101: 1 contact collision, min clearance 0.0). Reported as measured.
+- GPU thermal guard added 18:11 (infrastructure/monitoring only, no code/config): `~/eval_setup/gpu_watch.sh`; rule: <80 C normal, 80-85 log, >85 C or headroom<=5 C (slowdown 87 C => >=82 C) or thermal flag or episode rtf<0.7 => SIGSTOP of the run_batch scheduler only (running episodes finish), release <75 C. Restart with --parallel 2 is manual.
+- Parallel decision: --parallel 3 holds for avoidance; exploration is heavier (SLAM+Nav2), so rtf is watched: rtf<0.7 triggers the hold and a drop to 2.

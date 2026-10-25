@@ -1,0 +1,20 @@
+t,t_rel,event,detail
+,,harness_started,
+,,gate_failed,G1_clock
+,,stopping,bringup_failed
+,,harness_started,
+,,gate_ok,G1_clock
+,,gate_ok,G2_controllers
+,,gate_ok,G3_gt_odom
+,,recorder_started,/home/hrishikesh/eval_runs/quick_responsiveness/office/responsiveness_bare/seed_101
+10.124000,0.160000,first_gt_sample,9.964000
+12.500000,2.536000,episode_start,12.500000
+,,rtabmap_stalled,loop_events.csv not growing for 20 s
+110.100000,100.136000,finished_signal,eval_done
+,,stopping,goals_done
+112.564000,102.600000,stop_received,112.564000
+112.564000,102.600000,final_map_missing,no /rtabmap/map received
+112.564000,102.600000,contact_publishers,3
+112.564000,102.600000,contact_topic_alive,0
+112.564000,102.600000,ground_contacts_dropped,0
+112.564000,102.600000,recorder_stopped,112.564000

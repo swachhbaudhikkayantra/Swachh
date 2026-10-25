@@ -1,0 +1,86 @@
+experiment: quick_avoidance
+world: avoid_u_trap
+world_name_in_sdf: avoid_u_trap_world
+method: scripted_goals
+seed: 103
+spawn_x: -2.050427519738638
+spawn_y: 0.0368769500374061
+spawn_yaw: -0.19463634467744761
+odom_noise: false
+odom_noise_params: &id001
+  sigma_scale_lin: 0.02
+  sigma_scale_ang: 0.03
+  sigma_rw_per_sqrt_m: 0.02
+  sigma_rw_per_sqrt_rad: 0.03
+noise_seed: 1103
+git_commit: 92c7757ed13f00f0f039a14aa9ddd7739f514f56
+git_dirty: true
+config_snapshot:
+  grid_resolution_m: 0.05
+  robot_body_z_lo: 0.03
+  robot_body_z_hi: 0.3
+  r_inscribed_m: 0.125
+  grid_margin_m: 0.5
+  swath_width_m: 0.25
+  collision_gap_s: 0.5
+  contact_odom_corrupt_deg: 15.0
+  encounter_distance_m: 0.5
+  deadline_cmd_motion_s: 0.5
+  deadline_stop_s: 0.5
+  deadline_goal_motion_s: 2.0
+  deadline_obstacle_s: 1.0
+  lc_pos_tol_m: 0.3
+  lc_yaw_tol_deg: 30.0
+  lc_min_time_gap_s: 30.0
+  lc_reg_trans_tol_m: 0.1
+  lc_reg_rot_tol_deg: 5.0
+  lc_transform_convention: loop_to_ref
+  episode_timeout_sim_sec: 1200
+  odom_noise: *id001
+  validity:
+    camera_hz: 30.0
+    max_img_drop_pct: 10.0
+    max_rtabmap_gap_s: 5.0
+    min_rtabmap_update_frac: 0.5
+  health:
+    min_n:
+      goals: 5
+      encounters: 3
+      lc_accepted: 5
+      lc_revisits: 3
+      resp_events: 10
+    floors:
+      nav_success_gt_pct: 50
+      coverage_explored_pct: 70
+      map_completeness_pct: 60
+      ate_fixed_rmse_m: 0.3
+      lc_precision_pct: 50
+      avoidance_pct: 80
+    suspect:
+      nav_gt_divergence_pp: 30
+      min_rtf: 0.15
+      frame_offset_m: 0.1
+      map_align_shift_m: 0.2
+start_wall_iso: '2026-10-25T18:10:17.894393+05:30'
+episode_timeout_sim_sec: 300.0
+swath_width_m: 0.25
+grid_resolution_m: 0.05
+headless: true
+slot: 0
+ros_domain_id: 0
+gz_partition: vacuum_slot0
+lean: 1
+gpu: 0
+versions:
+  gz: Gazebo Sim, version 8.15.0
+  python: 3.12.3
+run_notes: []
+goal_list: scenario
+nav_map: gt
+localization_mode: amcl
+t_world_map:
+- 0.0
+- 0.0
+- 0.0
+end_reason: goals_done
+wall_elapsed_sec: 99.5976231098175

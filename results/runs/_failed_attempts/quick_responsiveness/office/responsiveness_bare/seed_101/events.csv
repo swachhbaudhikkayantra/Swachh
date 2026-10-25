@@ -1,0 +1,4 @@
+t,t_rel,event,detail
+,,harness_started,
+,,gate_failed,G1_clock
+,,stopping,bringup_failed

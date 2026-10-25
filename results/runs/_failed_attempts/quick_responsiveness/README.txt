@@ -1,0 +1,1 @@
+attempt 1 (G1_clock bringup_failed on slot 0 after Wi-Fi change; stale ros2 daemon on domain 0 since 16:22). Copied here before the one allowed same-seed rerun. Not part of quick_responsiveness stats.

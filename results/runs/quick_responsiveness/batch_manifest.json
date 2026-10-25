@@ -1,0 +1,7 @@
+{
+ "campaign": "/home/hrishikesh/Swachh/Navigation/Simulation/vacuum_ws/src/vacuum_eval/config/campaigns/quick_responsiveness.yaml",
+ "campaign_sha256": "3c904f656c8cb3d5d9fd0966219e42800a51250f8e163b1fd43be9475e5876e3",
+ "git_commit": "92c7757ed13f00f0f039a14aa9ddd7739f514f56",
+ "split": "test",
+ "time": 1792931515.5282948
+}

@@ -1,0 +1,15 @@
+t,t_rel,event,detail
+,,harness_started,
+,,gate_ok,G1_clock
+,,gate_ok,G2_controllers
+,,gate_ok,G3_gt_odom
+,,recorder_started,/home/hrishikesh/eval_runs/dev8h_resp_fix/apartment/responsiveness_loaded/seed_001
+6.968000,0.164000,first_gt_sample,6.804000
+,,gate_failed,G4_tf
+,,stopping,bringup_failed
+130.560000,123.756000,stop_received,130.560000
+130.560000,123.756000,final_map_missing,no /rtabmap/map received
+130.560000,123.756000,contact_publishers,3
+130.560000,123.756000,contact_topic_alive,0
+130.560000,123.756000,ground_contacts_dropped,0
+130.560000,123.756000,recorder_stopped,130.560000
