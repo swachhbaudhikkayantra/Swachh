@@ -4,6 +4,8 @@ You are on a **remote Ubuntu 24.04 GPU PC** (hostname `victus`, user `hrishikesh
 
 > **CURRENT SESSION (2026-10-25): the budget is 4 hours, not 8.** The clock started at **16:29:17 IST**; the deadline is **20:29:17 IST**. Read **`docs/SESSION_STATE.md` first** (live state: phase, what is done, what to run next, how to resume) and **`docs/FOUR_HOUR_PLAN.md`** (the cuts relative to the 8-hour plan). Log everything in `docs/EXECUTION_LOG.md`, and progress reports go to `~/Swachh/progress/` from ONE cron job only (`*/30`, owned by the other observing session; the */20 job was deleted at the user's request). If you are a new session, do not create a second cron. Never wait more than 15 minutes without checking in; run a timed watcher (`~/eval_setup/wait_timer.sh`) whenever you wait. The watcher is passive (writes `~/eval_setup/wait_timer.txt`); arm a notifying waiter only when you actually go idle, and stop it if you are already back at work, so it never interrupts you mid-task.
 
+> **Results and audits of the 2026-10-25 run:** `docs/EVALUATION_FINDINGS_2026-10-25.md` (what each metric really measures, known biases, failure modes, candidate fixes). Read it before any new campaign.
+
 ## Read first, in this order
 0. `docs/SESSION_STATE.md` and `docs/FOUR_HOUR_PLAN.md` (current state and overrides).
 1. `docs/REMOTE_MACHINE.md`: this machine's facts and what is already set up.

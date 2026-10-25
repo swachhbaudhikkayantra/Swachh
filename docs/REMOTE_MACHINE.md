@@ -29,3 +29,11 @@ Keep RViz closed during the Phase C test campaign (it slows runs and can make ep
 
 ## After the run
 Tell the owner to: `sudo rm /etc/sudoers.d/hrishikesh`, `sudo deluser hrishikesh sudo`, unmask the sleep targets, and unshare the machine in Tailscale. Offer to tar the results (plan §11.5).
+
+## Lessons from the 2026-10-25 run
+- ROS apt repo: `packages.ros.org` serves a `*.osuosl.org` certificate (name mismatch); `/etc/apt/sources.list.d/ros2.list` uses **http** with `signed-by=/usr/share/keyrings/ros-archive-keyring.gpg` (fingerprint C1CF 6E31 E6BA DE88 68B1 72B4 F42E D6FB AB17 C654). `setup_machine.sh` aborts if `/opt/ros/jazzy` is missing: install `ros-jazzy-desktop ros-dev-tools` first.
+- No DISPLAY over SSH and the desktop belongs to user `uzair`: always `VACUUM_GZ_HEADLESS_RENDERING=1` (`~/eval_setup/env.sh`). NVIDIA EGL works without the `render`/`video` groups (libEGL `/dev/dri` warnings are harmless). preflight's renderer line is empty without a display; check `nvidia-smi` for the gz process instead.
+- **CPU, not GPU, is the limit:** 3 parallel SLAM sims gave load avg 67 on 16 threads and RTF ~0.74; use `--parallel 2` (RTF 1.0). GPU peaked at 66 C.
+- **After any network change** (the PC moved Wi-Fi mid-run), stop the `ros2` daemon for domain 0 before launching; a stale daemon made G1_clock fail on slot 0.
+- Effective depth camera HFOV is 69.4 deg (model uses the colour HFOV).
+- Monitoring helpers in `~/eval_setup/`: `wait_timer.sh` (10-min capped watcher), `gpu_watch.sh` (thermal guard), `snapshot_results.sh` (light results copy + local commit), `results_table.py`.

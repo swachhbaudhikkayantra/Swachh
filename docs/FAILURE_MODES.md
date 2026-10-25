@@ -168,3 +168,15 @@ ON HOLD (user decision). No failure modes tracked until reopened.
 **Sonnet-only council** (`~/.claude/skills/llm-council`): judgment calls where the evidence is in the data but the interpretation is not: artefact versus genuine ambiguous cases, SUSPECT:RANGE values, whether a flagged subset changes the conclusion, whether an axle-offset effect changes method ordering, which fallback key to headline.
 
 **User:** anything that changes the frozen set (definitions, floors, split, seeds, planner or stack changes), any exclusion or deviation from the preregistration, hardware or time decisions (rerun budgets, machine choice), reopening the on-hold method comparison (#13), and anything the council cannot resolve or that affects a claim in the paper abstract.
+
+
+## Failure modes found in the 2026-10-25 campaign (details: `EVALUATION_FINDINGS_2026-10-25.md`)
+
+| Symptom | Diagnosis | Action |
+|---|---|---|
+| nav_success_gt low; nav2.log full of `"Start occupied"`; error 205 in goal_events | Planner start (= AMCL estimate) in a wall's inscribed zone: ~36 % localization error, ~60 % robot truly within footprint of a wall, no recovery moves it | Report as measured. Check with `--localization gt` (dev). Candidate: START_OCCUPIED recovery (nav v2), AMCL likelihood settings |
+| Exploration robot never moves, `No free cell with 0.30 m clearance` then `No eligible frontier` ~1000x, stuck at 180 s | First map is a sliver (robot faces a wall after the bootstrap spin); `_snap_goal` counts unknown as blocked; no fallback | Genuine, not infra: report, do not rerun. Candidate: explorer stall fallback |
+| AMCL stuck 0.5 m / 10 deg off for minutes (maze) | Loose sigma_hit/z_rand, recovery off, 69 deg FOV, flat walls | Report; candidate AMCL settings |
+| LC precision BAD with rotation errors 7-15 deg | GT taken at Info arrival (lag 0.1-0.4 s) | Report as lower bound; offline recompute from node stamps |
+| G1_clock fails on slot 0 only after a network change | Stale `ros2` daemon for domain 0 | `ros2 daemon stop` (or kill the daemon by PID), rerun once (infra) |
+| MPPI "control loop missed" > 5/min, jittery cmd_vel | CPU oversubscribed (3 sims on 16 threads) | Use --parallel 2 for SLAM workloads |

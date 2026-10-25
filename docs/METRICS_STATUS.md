@@ -16,6 +16,9 @@ Machine: victus, RTX 5050 Laptop, headless EGL; freeze commit 92c7757 plus logge
 
 **The navigation campaign (#10, #12, A14) measures Nav2 + AMCL on a ground-truth map (`--nav-map gt`), not the RTAB-Map pipeline.** Its ATE/RPE are AMCL estimate errors. SLAM metrics (#6-#8, #11) come from the exploration campaign.
 
+
+**Audit caveats (2026-10-25, see `docs/EVALUATION_FINDINGS_2026-10-25.md`):** #11 LC precision is a lower bound (GT at Info arrival, not node stamp; a diagnostic time shift gives 52-77 %). #9 = 66.7 % [16.7, 100] (report row empty due to the make_report key bug). #5 headline = step response (cmd -> 50 % speed) 160-172 ms / stop 250-270 ms; goal-to-motion % are confounded by planning and are not responsiveness. #3 counts contact bursts (one jam = 3-7). A8 = time to first successful plan (median 10-30 ms). #1/#8 faithful (moving runs 78.8 % / 62.9 %). Depth camera HFOV is 69.4 deg, not 86 deg. office/multi_room_loop exploration and avoidance ran with 3 concurrent sims (RTF ~0.74, more control-loop misses).
+
 | # | Metric | Source campaign | Value (95 % CI) | Health (episodes) / notes |
 |---|---|---|---|---|
 | 1 | Coverage explored | exploration | 61.4 % [18.5, 88.0], n=9 | office 83.8, multi_room_loop 86.3, maze_dead_ends 14.3 (2 of 3 maze episodes never moved: explorer's 0.30 m goal-clearance rule found no sendable frontier); health OK 2 / SUSPECT 5 / BAD 4 (U 20 = campaigns that do not explore) |

@@ -253,3 +253,9 @@ If it passes: commit v2 at a hash first, append the pre-registration row, run v2
 5. Sample timer starvation from blocking TF lookups when no map frame (bare runs 6 Hz instead of 10 Hz): no metric impact found.
 6. No CSV corruption in any of 31 runs; theoretical races (t0, gt/gt_stamp, events.csv, close-vs-write) unguarded.
 - None fixed (freeze). Fix candidates for a post-campaign recorder update: header stamps for Info/TwistStamped/Contacts, slow callbacks into their own groups, rates from header stamps.
+
+## 2026-10-25 ~20:17 IST AUDIT 9 (Sonnet, read-only): collisions / clearance / avoidance_pct
+- Contacts are genuine chassis-vs-obstacle contacts (one own collision entity, no floor/wheel/self rows); clearance uses the correct chassis-centred footprint (no 8 cm bias; recompute matches, e.g. office 104 0.263 vs 0.2645 m). min_clearance = 0 exactly in the 7 navigation episodes with contact, never otherwise.
+- **n_collisions counts contact bursts separated by > 0.5 s, not distinct impacts:** a single sustained jam splits into 3-7 "collisions" (office 104: 3 = one jam on desk_1; maze 103: 5 contact / 15 geometry = 2 jams, 159 s in contact). Report collision_contact_time_s and unique obstacles alongside the count.
+- Wheels protrude ~1.8 cm beyond the 0.25 m chassis width and are not in the contact sensor/footprint: collisions and clearance slightly optimistic.
+- avoidance_pct excludes walls (by design); maze_dead_ends has only walls so avoidance_pct is None there (12 wall collisions appear only in n_collisions / avoidance_pct_all). Denominators are small and quantised. Latent bug: safety.py:298 reads `d_enc_m` instead of `encounter_distance_m` (falls back to the same 0.5 default today).
