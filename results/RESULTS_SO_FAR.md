@@ -1,4 +1,4 @@
-# Test-split results so far (auto-generated 2026-10-25 19:44)
+# Test-split results so far (auto-generated 2026-10-25 19:45)
 
 Only `quick_*` (test split). Values: mean [min-max] over the *valid* episodes; invalid episodes are counted but excluded from statistics. Flags: counts of non-OK health statuses over all episodes of the group (L=LOW_N, S=SUSPECT, B=BAD, U=UNMEASURABLE; n= episodes in that status). Pooled CIs come from the final report; here n is tiny.
 

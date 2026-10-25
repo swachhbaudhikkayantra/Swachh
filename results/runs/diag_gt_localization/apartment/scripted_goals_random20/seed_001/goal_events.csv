@@ -64,3 +64,8 @@ t,t_rel,src,goal_seq,event,result,x,y,nav2_error_code,uuid
 292.452000,274.648000,behavior_wait,,executing,,,,,e5da409df5f115c74e2a1a2d494e7efe
 297.544000,279.740000,behavior_wait,,succeeded,,,,,e5da409df5f115c74e2a1a2d494e7efe
 307.636000,289.832000,behavior_wait,,executing,,,,,600433486ceee17069740a3aba46b1c3
+310.640000,292.836000,behavior_wait,,succeeded,,,,,600433486ceee17069740a3aba46b1c3
+317.100000,299.296000,scripted,12,ended,succeeded,0.775000,-1.475000,0,
+317.104000,299.300000,nav2_status,,succeeded,,,,,54798c777f7b41e4935733fd27a7fd22
+318.100000,300.296000,scripted,13,started,started,-2.475000,0.125000,,
+318.100000,300.296000,nav2_status,,executing,,,,,a1ab89561adc4c6fa1f133c3d1990dd4
