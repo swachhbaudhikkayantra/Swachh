@@ -259,3 +259,24 @@ If it passes: commit v2 at a hash first, append the pre-registration row, run v2
 - **n_collisions counts contact bursts separated by > 0.5 s, not distinct impacts:** a single sustained jam splits into 3-7 "collisions" (office 104: 3 = one jam on desk_1; maze 103: 5 contact / 15 geometry = 2 jams, 159 s in contact). Report collision_contact_time_s and unique obstacles alongside the count.
 - Wheels protrude ~1.8 cm beyond the 0.25 m chassis width and are not in the contact sensor/footprint: collisions and clearance slightly optimistic.
 - avoidance_pct excludes walls (by design); maze_dead_ends has only walls so avoidance_pct is None there (12 wall collisions appear only in n_collisions / avoidance_pct_all). Denominators are small and quantised. Latent bug: safety.py:298 reads `d_enc_m` instead of `encounter_distance_m` (falls back to the same 0.5 default today).
+
+## 2026-10-25 20:16 IST NAV v2 DEV A/B RESULT — rule FAILS -> STOP (no test-split v2 runs)
+Runs: `~/eval_runs/dev_navab_{v1,v2}/apartment/scripted_goals_random20/seed_00{1,2}` (apartment, dev seeds 1-2, v1 slot 0 + v2 slot 1 concurrently; v2 commit 10b6b11; run_meta nav_variant verified v1/v2). All 4 valid, status ok, rtf 1.0, img_drop 0.
+| | v1 seed 1 | v1 seed 2 | v2 seed 1 | v2 seed 2 |
+|---|---|---|---|---|
+| end | stuck 198 s | stuck 335 s | goals_done 469 s | stuck 202 s |
+| goals | 9 | 16 | 20 | 9 |
+| GT-verified goals | 1 | 3 | 8 | 1 |
+| Nav2 succeeded | 1 | 7 | 11 | 1 |
+| "Start occupied" lines | 126 | 134 | 109 | 138 |
+| collisions (contact time) | 0 | 2 (5.2 s) | 0 | 0 |
+| failure codes | 205 | 205, 103 | 205, 208 | 205, 104 |
+Pooled: v1 GT 4/25 = 16.0 %; v2 9/29 = 31.0 %.
+Rule check (fixed before data):
+1. GT success +15.0 pp and +5 goals -> PASS.
+2. START_OCCUPIED v2 247 vs v1 260 = 95 % of v1 (needs <= 60 %) -> **FAIL**.
+3. Per seed: seed 2 v2 is worse by 2 GT goals (1 vs 3; tolerance 1) -> **FAIL**.
+4. Collisions v2 0 <= 2; 0 contacts within 5 s of any of 98 BackUp starts -> PASS.
+5. Stuck v2 1 <= 2; no invalid; failure codes 208 (no valid path) and 104 appear in v2 but not v1 (v1 has 103) -> borderline (new categories).
+6. RTF 1.0 vs 1.0 -> PASS.
+**Decision: v2 does not advance (criteria 2 and 3 fail). Per the user's rule and the council: stop, no tuning, no extra seeds, no test-split v2 episodes, no pre-registration row.** Mechanism observation: BackUp mostly aborted with "Collision Ahead" (58 / 79 lines in v2; it cannot reverse when the footprint already touches the wall in the local costmap), so START_OCCUPIED was not reduced; seed 1's gain is not reproduced on seed 2. The dev result is reported as a negative screening result. The v2 files stay in the repo as an opt-in variant (default v1); the v1 campaign results are unchanged and remain the reported results. The audits point to AMCL likelihood settings (sigma_hit/z_rand/recovery) and the 69 deg FOV as the stronger levers; any such variant needs a new pre-registered plan.
