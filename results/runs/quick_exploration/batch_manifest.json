@@ -1,7 +1,7 @@
 {
  "campaign": "/home/hrishikesh/Swachh/Navigation/Simulation/vacuum_ws/src/vacuum_eval/config/campaigns/quick_exploration.yaml",
  "campaign_sha256": "e83cc4197c7aff0439343e7c5acf1de175b94ab7a41b3f40b0f5fe59fca94972",
- "git_commit": "92c7757ed13f00f0f039a14aa9ddd7739f514f56",
+ "git_commit": "ee97680c43aa870bf6dc97c6e9321a2c0bf9d2f5",
  "split": "test",
- "time": 1792932256.711868
+ "time": 1792933751.5949445
 }

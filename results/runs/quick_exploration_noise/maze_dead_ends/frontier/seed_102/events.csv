@@ -1,0 +1,13 @@
+t,t_rel,event,detail
+,,harness_started,
+,,gate_ok,G1_clock
+,,gate_ok,G2_controllers
+,,gate_ok,G3_gt_odom
+,,recorder_started,/home/hrishikesh/eval_runs/quick_exploration_noise/maze_dead_ends/frontier/seed_102
+10.740000,0.192000,first_gt_sample,10.636000
+10.740000,0.192000,first_est_sample,10.636000
+,,gate_ok,G4_tf
+,,gate_ok,G5_nav
+,,gate_ok,G6_map
+25.340000,14.792000,episode_start,25.340000
+,,gate_ok,G7_rtabmap_alive

@@ -1,11 +1,11 @@
-# Results index (auto-generated 2026-10-25 18:24)
+# Results index (auto-generated 2026-10-25 18:43)
 
 Light snapshot of `~/eval_runs` (no bags, no rtabmap.db). Full data stays on victus. Test-split campaigns are `quick_*`; `dev8h_*` are Phase A dev checks (not pooled); `_failed_attempts` are attempt-1 infra failures.
 
 | experiment | world | method/stack | seed | status | valid | rtf | img_drop % | end_reason |
 |---|---|---|---|---|---|---|---|---|
-| _failed_attempts | quick_responsiveness | office | seed_101 | failed | True |  |  | bringup_failed |
-| _failed_attempts | quick_responsiveness | office | seed_102 | failed | True |  |  | bringup_failed |
+| _failed_attempts | office | responsiveness_bare | seed_101 | failed | True |  |  | bringup_failed |
+| _failed_attempts | office | responsiveness_loaded | seed_102 | failed | True |  |  | bringup_failed |
 | dev8h_avoid | avoid_dynamic_cross | scripted_goals_scenario | seed_001 | ok | True | 1.01 | 9.48 | goals_done |
 | dev8h_avoid | avoid_head_on | scripted_goals_scenario | seed_001 | ok | True | 1.003 | 3.69 | goals_done |
 | dev8h_avoid_fix | avoid_dynamic_cross | scripted_goals_scenario | seed_001 | ok | True | 1.0 | 0.0 | goals_done |
@@ -24,6 +24,12 @@ Light snapshot of `~/eval_runs` (no bags, no rtabmap.db). Full data stays on vic
 | quick_avoidance | avoid_u_trap | scripted_goals_scenario | seed_101 | ok | True | 1.0 | 0.0 | goals_done |
 | quick_avoidance | avoid_u_trap | scripted_goals_scenario | seed_102 | ok | True | 1.0 | 1.34 | goals_done |
 | quick_avoidance | avoid_u_trap | scripted_goals_scenario | seed_103 | ok | True | 0.997 | 0.0 | goals_done |
+| quick_exploration_noise | multi_room_loop | frontier | seed_101 | ok | True | 0.738 | 0.0 | timeout |
+| quick_exploration_noise | multi_room_loop | frontier | seed_102 | ok | True | 0.74 | 0.0 | timeout |
+| quick_exploration_noise | multi_room_loop | frontier | seed_103 | ok | True | 0.75 | 0.0 | timeout |
+| quick_exploration_noise | office | frontier | seed_101 | ok | True | 0.753 | 0.0 | timeout |
+| quick_exploration_noise | office | frontier | seed_102 | ok | True | 0.737 | 0.0 | timeout |
+| quick_exploration_noise | office | frontier | seed_103 | ok | True | 0.729 | 0.0 | timeout |
 | quick_responsiveness | office | responsiveness_bare | seed_101 | invalid | False | 1.0 | 0.0 | goals_done |
 | quick_responsiveness | office | responsiveness_bare | seed_102 | invalid | False | 0.926 | 0.0 | goals_done |
 | quick_responsiveness | office | responsiveness_loaded | seed_101 | ok | True | 0.963 | 0.0 | goals_done |
