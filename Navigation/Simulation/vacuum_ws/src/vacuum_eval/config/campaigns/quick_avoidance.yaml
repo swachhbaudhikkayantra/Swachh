@@ -6,7 +6,7 @@ worlds: [avoid_u_trap, avoid_dynamic_sudden]
 methods: [scripted_goals]
 nav_maps: [gt]
 goal_lists: [scenario]
-seeds: [101, 102, 103, 104, 105]
+seeds: [101, 102, 103]   # 4-HOUR PLAN cut (was 101-105); see docs/FOUR_HOUR_PLAN.md
 odom_noise: [0]
 timeout_sim_sec: 300
 headless: 1

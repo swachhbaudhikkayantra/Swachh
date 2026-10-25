@@ -219,6 +219,9 @@ def shortest_path_length(gt: GtGrid, start_xy, goal_xy) -> Optional[float]:
 
 
 # ---------------------------------------------------------------- goal records
+GOAL_PRE_START_TOL_S = 1.0   # a goal sent up to 1 s before the first motion command belongs to the episode
+
+
 def goal_records(run: Run, t0: float, t1: float) -> List[dict]:
     ge = run.goal_events
     if not ge or 'src' not in ge:
@@ -246,7 +249,7 @@ def goal_records(run: Run, t0: float, t1: float) -> List[dict]:
     for key in order:
         k = started[key]
         ts = _f(ge['t'][k])
-        if not (t0 <= ts <= t1):
+        if not (t0 - GOAL_PRE_START_TOL_S <= ts <= t1):
             continue
         x, y = _f(ge['x'][k]), _f(ge['y'][k])
         wx, wy, _ = se2_compose(twm, (x, y, 0.0))

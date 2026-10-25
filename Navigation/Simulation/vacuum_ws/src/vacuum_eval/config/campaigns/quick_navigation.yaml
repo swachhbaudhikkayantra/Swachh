@@ -7,7 +7,7 @@ worlds: [office, two_rooms_door, maze_dead_ends]
 methods: [scripted_goals]
 nav_maps: [gt]
 goal_lists: [random20]
-seeds: [101, 102, 103, 104]
+seeds: [101, 102]   # 4-HOUR PLAN cut (was 101-104); see docs/FOUR_HOUR_PLAN.md
 odom_noise: [0]
 timeout_sim_sec: 900
 headless: 1

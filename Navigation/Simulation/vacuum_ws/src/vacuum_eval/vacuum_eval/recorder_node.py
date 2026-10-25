@@ -9,6 +9,8 @@ import time
 import numpy as np
 import psutil
 import rclpy
+from rclpy.callback_groups import MutuallyExclusiveCallbackGroup
+from rclpy.executors import MultiThreadedExecutor
 from action_msgs.msg import GoalStatusArray
 from geometry_msgs.msg import Twist, TwistStamped
 from nav2_msgs.action import NavigateToPose
@@ -175,7 +177,12 @@ class Recorder(Node):
             depth=100, reliability=ReliabilityPolicy.RELIABLE,
             durability=DurabilityPolicy.VOLATILE))
 
-        self.create_timer(1.0 / float(p('sample_hz').value), self.on_sample)
+        # on_sample blocks in tf lookups (timeouts 0.1 s + 0.05 s when no map frame). On the shared
+        # executor thread that stalled every subscription and under-counted the 30 Hz topics
+        # (docs/EXECUTION_LOG.md 2026-10-25); its own callback group runs it on a second thread.
+        self.sample_group = MutuallyExclusiveCallbackGroup()
+        self.create_timer(1.0 / float(p('sample_hz').value), self.on_sample,
+                          callback_group=self.sample_group)
         self.create_timer(1.0, self.on_rates)
         self.wall_timer = self.create_timer(
             1.0, self.on_wall, clock=Clock(clock_type=ClockType.SYSTEM_TIME))
@@ -202,6 +209,8 @@ class Recorder(Node):
         self.writers[name] = (w, stamped)
 
     def row(self, name, vals, t=None):
+        if self.files[name].closed:   # late timer callback after on_stop closed the files
+            return
         w, stamped = self.writers[name]
         if stamped:
             if t is None:
@@ -517,9 +526,11 @@ class Recorder(Node):
 def main(args=None):
     rclpy.init(args=args)
     node = Recorder()
+    executor = MultiThreadedExecutor(num_threads=2)
+    executor.add_node(node)
     try:
         while rclpy.ok() and not node.stop:
-            rclpy.spin_once(node, timeout_sec=0.1)
+            executor.spin_once(timeout_sec=0.1)
     except KeyboardInterrupt:
         pass
     finally:

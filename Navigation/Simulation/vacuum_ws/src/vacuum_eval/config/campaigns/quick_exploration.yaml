@@ -4,7 +4,7 @@ experiment: quick_exploration
 split: test
 worlds: [office, multi_room_loop, maze_dead_ends]
 methods: [frontier]
-seeds: [101, 102, 103, 104, 105]
+seeds: [101, 102, 103]   # 4-HOUR PLAN cut (was 101-105); see docs/FOUR_HOUR_PLAN.md
 odom_noise: [1]
 timeout_sim_sec: 450
 headless: 1

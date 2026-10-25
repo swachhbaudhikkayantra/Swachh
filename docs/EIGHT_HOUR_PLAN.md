@@ -1,5 +1,7 @@
 # EIGHT-HOUR PLAN: measure every metric in one 8-hour session on a GPU PC
 
+> **OVERRIDDEN FOR THIS SESSION (2026-10-25): the budget is 4 hours, not 8. Read `docs/FOUR_HOUR_PLAN.md` first; it lists every difference (phases A2/A3 skipped, smaller seed counts, 10-min fix box, parallel rule). Live state is in `docs/SESSION_STATE.md`.**
+
 **Audience:** the agent (or person) running the evaluation on a remote Ubuntu PC with an NVIDIA GPU (a friend's machine, RTX 50-series), reached over SSH.
 **Prepared:** 2026-10-24, by the Claude Code session that built the system.
 **Goal:** in **8 hours of wall-clock time after machine setup**, produce valid measurements of **all 13 active metrics** (metric #13, method comparison, is on hold) on the pre-registered **test split**, plus the final report. The reduced scope is shown in §2.
