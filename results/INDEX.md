@@ -1,4 +1,4 @@
-# Results index (auto-generated 2026-10-25 18:43)
+# Results index (auto-generated 2026-10-25 18:45)
 
 Light snapshot of `~/eval_runs` (no bags, no rtabmap.db). Full data stays on victus. Test-split campaigns are `quick_*`; `dev8h_*` are Phase A dev checks (not pooled); `_failed_attempts` are attempt-1 infra failures.
 
@@ -24,6 +24,7 @@ Light snapshot of `~/eval_runs` (no bags, no rtabmap.db). Full data stays on vic
 | quick_avoidance | avoid_u_trap | scripted_goals_scenario | seed_101 | ok | True | 1.0 | 0.0 | goals_done |
 | quick_avoidance | avoid_u_trap | scripted_goals_scenario | seed_102 | ok | True | 1.0 | 1.34 | goals_done |
 | quick_avoidance | avoid_u_trap | scripted_goals_scenario | seed_103 | ok | True | 0.997 | 0.0 | goals_done |
+| quick_exploration_noise | maze_dead_ends | frontier | seed_101 | ok | True | 0.999 | 0.0 | stuck |
 | quick_exploration_noise | multi_room_loop | frontier | seed_101 | ok | True | 0.738 | 0.0 | timeout |
 | quick_exploration_noise | multi_room_loop | frontier | seed_102 | ok | True | 0.74 | 0.0 | timeout |
 | quick_exploration_noise | multi_room_loop | frontier | seed_103 | ok | True | 0.75 | 0.0 | timeout |
