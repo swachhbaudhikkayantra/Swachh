@@ -1,0 +1,22 @@
+t,t_rel,event,detail
+,,harness_started,
+,,gate_ok,G1_clock
+,,gate_ok,G2_controllers
+,,gate_ok,G3_gt_odom
+,,recorder_started,/home/hrishikesh/eval_runs/dev_navab_v1/apartment/scripted_goals_random20/seed_001
+16.512000,0.160000,first_gt_sample,16.352000
+,,gate_ok,G5_nav
+20.816000,4.464000,first_est_sample,20.712000
+,,amcl_initial_pose_sent,-0.500 2.000 2.830
+,,gate_ok,G4_tf
+,,gate_ok,G6_map_server
+32.644000,16.292000,episode_start,32.644000
+,,rtabmap_stalled,loop_events.csv not growing for 20 s
+230.648,,stuck_detected,
+,,stopping,stuck
+233.440000,217.088000,stop_received,233.440000
+233.440000,217.088000,final_map_missing,no /rtabmap/map received
+233.440000,217.088000,contact_publishers,3
+233.440000,217.088000,contact_topic_alive,0
+233.440000,217.088000,ground_contacts_dropped,0
+233.440000,217.088000,recorder_stopped,233.440000

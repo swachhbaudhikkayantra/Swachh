@@ -1,0 +1,5 @@
+PAUSED_AT 2026-10-25T17:29:54+05:30
+ELAPSED_AT_PAUSE_SEC 3637      # 1h00m37s of the 4h budget used (T0 was 16:29:17)
+REMAINING_AT_PAUSE_SEC 10763   # 2h59m23s
+REASON: user asked to pause; the PC owner is suspending the machine to transport it.
+ON RESUME: new deadline = resume time + 10763 s. Write it to ~/eval_setup/DEADLINE and add a RESUME line to ~/eval_setup/timer.log.

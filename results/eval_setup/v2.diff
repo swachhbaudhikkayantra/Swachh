@@ -1,0 +1,102 @@
+diff --git a/Navigation/Simulation/vacuum_ws/src/vacuum_eval/vacuum_eval/run_episode.py b/Navigation/Simulation/vacuum_ws/src/vacuum_eval/vacuum_eval/run_episode.py
+index 9e36861..ce8979a 100644
+--- a/Navigation/Simulation/vacuum_ws/src/vacuum_eval/vacuum_eval/run_episode.py
++++ b/Navigation/Simulation/vacuum_ws/src/vacuum_eval/vacuum_eval/run_episode.py
+@@ -427,6 +427,7 @@ def meta_extras(a, ent, spawn, goal_list=None):
+         loc = _loc_mode(a)
+         ex.update(goal_list=goal_list, nav_map=a.nav_map,
+                   localization_mode=loc,
++                  nav_variant=os.environ.get('VACUUM_NAV_VARIANT', 'v1'),
+                   t_world_map=[0.0, 0.0, 0.0] if gt_mode else [float(v) for v in spawn])
+         if ent.get('dynamic_obstacles'):
+             ex['dynamic_obstacles'] = {k: {'size': list(v.get('size', [0.4, 0.4]))}
+diff --git a/Navigation/Simulation/vacuum_ws/src/vacuum_nav2/launch/nav2_localization.launch.py b/Navigation/Simulation/vacuum_ws/src/vacuum_nav2/launch/nav2_localization.launch.py
+index 487a670..9cd19a8 100644
+--- a/Navigation/Simulation/vacuum_ws/src/vacuum_nav2/launch/nav2_localization.launch.py
++++ b/Navigation/Simulation/vacuum_ws/src/vacuum_nav2/launch/nav2_localization.launch.py
+@@ -49,8 +49,14 @@ def generate_launch_description():
+     pkg_nav2 = get_package_share_directory('vacuum_nav2')
+ 
+     nav2_yaml     = os.path.join(pkg_nav2, 'config', 'nav2_params.yaml')
+-    amcl_yaml     = os.path.join(pkg_nav2, 'config', 'amcl_params.yaml')
+-    nav_bt_xml    = os.path.join(pkg_nav2, 'behavior_trees', 'navigate.xml')
++    # Navigation variant: v1 (default, the frozen campaign stack) or v2 (START_OCCUPIED
++    # recovery in the BT + AMCL with more particles / more frequent updates).
++    nav_variant   = os.environ.get('VACUUM_NAV_VARIANT', 'v1')
++    if nav_variant not in ('v1', 'v2'):
++        raise RuntimeError('VACUUM_NAV_VARIANT must be v1 or v2, got %r' % nav_variant)
++    sfx           = '_v2' if nav_variant == 'v2' else ''
++    amcl_yaml     = os.path.join(pkg_nav2, 'config', 'amcl_params%s.yaml' % sfx)
++    nav_bt_xml    = os.path.join(pkg_nav2, 'behavior_trees', 'navigate%s.xml' % sfx)
+ 
+     # ── Arguments ─────────────────────────────────────────────────────────────
+     declare_map_path = DeclareLaunchArgument(
+--- Navigation/Simulation/vacuum_ws/src/vacuum_nav2/behavior_trees/navigate.xml	2026-10-25 15:48:53.149240620 +0530
++++ Navigation/Simulation/vacuum_ws/src/vacuum_nav2/behavior_trees/navigate_v2.xml	2026-10-25 19:55:58.579802510 +0530
+@@ -1,5 +1,6 @@
+ <!--
+-  navigate.xml  —  Stage 5: Goal Navigation Behavior Tree
++  navigate_v2.xml  —  navigation v2 (2026-10-25): navigate.xml + START_OCCUPIED recovery
++  (BackUp 0.15 m, Spin 0.52 rad, then replan). Selected with VACUUM_NAV_VARIANT=v2.
+   ─────────────────────────────────────────────────────────────────────────────
+   Purpose:
+     Standard NavigateToPose BT for click-to-goal navigation on a known map.
+@@ -66,6 +67,21 @@
+       <!-- Top-level: last-resort recovery on total failure -->
+       <ReactiveFallback name="TopLevelFallback">
+         <GoalUpdated/>
++        <Fallback name="TopLevelRecoverySelect">
++          <!-- v2: planner refused the start (ComputePathToPose START_OCCUPIED = 205):
++               back up and rotate a little so the next plan starts from a free cell. -->
++          <Sequence name="StartOccupiedRecovery">
++            <AreErrorCodesPresent
++              error_code="{compute_path_error_code}"
++              error_codes_to_check="205"/>
++            <BackUp
++              backup_dist="0.15"
++              backup_speed="0.05"
++              error_code_id="{backup_error_code}"/>
++            <Spin
++              spin_dist="0.52"
++              error_code_id="{spin_error_code}"/>
++          </Sequence>
+         <RoundRobin name="TopLevelRecovery">
+           <ClearEntireCostmap
+             service_name="local_costmap/clear_entirely_local_costmap"/>
+@@ -77,6 +93,7 @@
+           <Wait
+             wait_duration="5.0"/>
+         </RoundRobin>
++        </Fallback>
+       </ReactiveFallback>
+ 
+     </RecoveryNode>
+--- Navigation/Simulation/vacuum_ws/src/vacuum_nav2/config/amcl_params.yaml	2026-10-25 15:48:53.149302348 +0530
++++ Navigation/Simulation/vacuum_ws/src/vacuum_nav2/config/amcl_params_v2.yaml	2026-10-25 19:55:58.580096237 +0530
+@@ -1,3 +1,5 @@
++# amcl_params_v2.yaml — navigation v2 (2026-10-25): amcl_params.yaml with more particles (1000-3000)
++# and more frequent filter updates (0.10 m / 0.10 rad). Selected with VACUUM_NAV_VARIANT=v2.
+ # amcl_params.yaml  —  Stage 5: AMCL Localization on Saved Map
+ # ─────────────────────────────────────────────────────────────────────────────
+ # Adaptive Monte Carlo Localization for the Swachh Boudhik Yantra vacuum robot.
+@@ -34,16 +36,16 @@
+     map_topic: /map
+ 
+     # ── Particle filter ────────────────────────────────────────────────────────
+-    min_particles: 500          # minimum particles (accuracy floor)
+-    max_particles: 2000         # maximum particles (CPU ceiling)
++    min_particles: 1000         # minimum particles (accuracy floor)
++    max_particles: 3000         # maximum particles (CPU ceiling)
+     pf_err: 0.05                # desired accuracy (lower = more particles)
+     pf_z:   0.99                # probability the true distribution is within pf_err
+ 
+     # ── Update thresholds ──────────────────────────────────────────────────────
+     # Only update particle filter when robot has moved enough.
+     # Prevents CPU spikes when the robot is stationary.
+-    update_min_d: 0.25          # m   — minimum linear displacement to trigger update
+-    update_min_a: 0.2           # rad — minimum angular displacement (~11 degrees)
++    update_min_d: 0.10          # m   — minimum linear displacement to trigger update
++    update_min_a: 0.10          # rad — minimum angular displacement (~11 degrees)
+     resample_interval: 1        # resample every N filter updates
+ 
+     # ── Differential drive motion model ────────────────────────────────────────

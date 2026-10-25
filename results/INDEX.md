@@ -1,4 +1,4 @@
-# Results index (auto-generated 2026-10-25 20:16)
+# Results index (auto-generated 2026-10-25 20:43)
 
 Light snapshot of `~/eval_runs` (no bags, no rtabmap.db). Full data stays on victus. Test-split campaigns are `quick_*`; `dev8h_*` are Phase A dev checks (not pooled); `_failed_attempts` are attempt-1 infra failures.
 
@@ -18,6 +18,10 @@ Light snapshot of `~/eval_runs` (no bags, no rtabmap.db). Full data stays on vic
 | dev8h_resp_fix | apartment | responsiveness_bare | seed_001 | invalid | False | 1.0 | 0.0 | goals_done |
 | dev8h_resp_fix | apartment | responsiveness_loaded | seed_001 | ok | True | 1.0 | 0.0 | goals_done |
 | dev8h_resp_fix | apartment | responsiveness_loaded | seed_001_attempt1_failed | failed | True | 1.0 |  | bringup_failed |
+| dev_navab_v1 | apartment | scripted_goals_random20 | seed_001 | ok | True | 1.0 | 0.0 | stuck |
+| dev_navab_v1 | apartment | scripted_goals_random20 | seed_002 | ok | True | 1.0 | 0.0 | stuck |
+| dev_navab_v2 | apartment | scripted_goals_random20 | seed_001 | ok | True | 1.0 | 0.0 | goals_done |
+| dev_navab_v2 | apartment | scripted_goals_random20 | seed_002 | ok | True | 1.0 | 0.0 | stuck |
 | diag_gt_localization | apartment | scripted_goals_random20 | seed_001 | ok | True | 1.0 | 0.0 | goals_done |
 | quick_avoidance | avoid_dynamic_sudden | scripted_goals_scenario | seed_101 | ok | True | 0.852 | 0.0 | goals_done |
 | quick_avoidance | avoid_dynamic_sudden | scripted_goals_scenario | seed_102 | ok | True | 0.813 | 0.0 | goals_done |

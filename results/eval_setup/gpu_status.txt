@@ -1,0 +1,1 @@
+20:16:26 NORMAL temp=44C head=43C pwr= 7.30W sm= 180MHz thermal_flag=0 powercap=NotActive held=no
