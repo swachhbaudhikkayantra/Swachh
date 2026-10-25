@@ -75,3 +75,5 @@ versions:
   gz: Gazebo Sim, version 8.15.0
   python: 3.12.3
 run_notes: []
+end_reason: timeout
+wall_elapsed_sec: 521.5163290500641

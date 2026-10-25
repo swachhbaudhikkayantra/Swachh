@@ -1,0 +1,22 @@
+t,t_rel,event,detail
+,,harness_started,
+,,gate_ok,G1_clock
+,,gate_ok,G2_controllers
+,,gate_ok,G3_gt_odom
+,,recorder_started,/home/hrishikesh/eval_runs/quick_navigation/two_rooms_door/scripted_goals_random20/seed_102
+17.232000,0.164000,first_gt_sample,17.068000
+,,gate_ok,G5_nav
+22.348000,5.280000,first_est_sample,22.244000
+,,amcl_initial_pose_sent,-1.500 -1.200 0.540
+,,gate_ok,G4_tf
+,,gate_ok,G6_map_server
+34.412000,17.344000,episode_start,34.412000
+,,rtabmap_stalled,loop_events.csv not growing for 20 s
+450.504000,433.436000,finished_signal,eval_done
+,,stopping,goals_done
+453.348000,436.280000,stop_received,453.348000
+453.348000,436.280000,final_map_missing,no /rtabmap/map received
+453.348000,436.280000,contact_publishers,3
+453.348000,436.280000,contact_topic_alive,1
+453.348000,436.280000,ground_contacts_dropped,0
+453.348000,436.280000,recorder_stopped,453.348000

@@ -1,0 +1,14 @@
+t,t_rel,event,detail
+,,harness_started,
+,,gate_ok,G1_clock
+,,gate_ok,G2_controllers
+,,gate_ok,G3_gt_odom
+,,recorder_started,/home/hrishikesh/eval_runs/quick_navigation/office/scripted_goals_random20/seed_104
+17.140000,0.164000,first_gt_sample,16.976000
+,,gate_ok,G5_nav
+22.256000,5.280000,first_est_sample,22.152000
+,,amcl_initial_pose_sent,-3.000 1.000 1.207
+,,gate_ok,G4_tf
+,,gate_ok,G6_map_server
+34.584000,17.608000,episode_start,34.584000
+,,rtabmap_stalled,loop_events.csv not growing for 20 s

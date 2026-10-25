@@ -1,4 +1,4 @@
-# Results index (auto-generated 2026-10-25 18:45)
+# Results index (auto-generated 2026-10-25 19:15)
 
 Light snapshot of `~/eval_runs` (no bags, no rtabmap.db). Full data stays on victus. Test-split campaigns are `quick_*`; `dev8h_*` are Phase A dev checks (not pooled); `_failed_attempts` are attempt-1 infra failures.
 
@@ -25,12 +25,20 @@ Light snapshot of `~/eval_runs` (no bags, no rtabmap.db). Full data stays on vic
 | quick_avoidance | avoid_u_trap | scripted_goals_scenario | seed_102 | ok | True | 1.0 | 1.34 | goals_done |
 | quick_avoidance | avoid_u_trap | scripted_goals_scenario | seed_103 | ok | True | 0.997 | 0.0 | goals_done |
 | quick_exploration_noise | maze_dead_ends | frontier | seed_101 | ok | True | 0.999 | 0.0 | stuck |
+| quick_exploration_noise | maze_dead_ends | frontier | seed_102 | ok | True | 1.0 | 0.0 | timeout |
+| quick_exploration_noise | maze_dead_ends | frontier | seed_103 | ok | True | 1.0 | 0.0 | stuck |
 | quick_exploration_noise | multi_room_loop | frontier | seed_101 | ok | True | 0.738 | 0.0 | timeout |
 | quick_exploration_noise | multi_room_loop | frontier | seed_102 | ok | True | 0.74 | 0.0 | timeout |
 | quick_exploration_noise | multi_room_loop | frontier | seed_103 | ok | True | 0.75 | 0.0 | timeout |
 | quick_exploration_noise | office | frontier | seed_101 | ok | True | 0.753 | 0.0 | timeout |
 | quick_exploration_noise | office | frontier | seed_102 | ok | True | 0.737 | 0.0 | timeout |
 | quick_exploration_noise | office | frontier | seed_103 | ok | True | 0.729 | 0.0 | timeout |
+| quick_navigation | maze_dead_ends | scripted_goals_random20 | seed_101 | ok | True | 1.0 | 0.0 | stuck |
+| quick_navigation | maze_dead_ends | scripted_goals_random20 | seed_102 | ok | True | 1.0 | 0.0 | stuck |
+| quick_navigation | office | scripted_goals_random20 | seed_101 | ok | True | 1.0 | 0.0 | stuck |
+| quick_navigation | office | scripted_goals_random20 | seed_102 | ok | True | 1.0 | 0.0 | stuck |
+| quick_navigation | two_rooms_door | scripted_goals_random20 | seed_101 | ok | True | 1.0 | 0.0 | goals_done |
+| quick_navigation | two_rooms_door | scripted_goals_random20 | seed_102 | ok | True | 1.0 | 0.0 | goals_done |
 | quick_responsiveness | office | responsiveness_bare | seed_101 | invalid | False | 1.0 | 0.0 | goals_done |
 | quick_responsiveness | office | responsiveness_bare | seed_102 | invalid | False | 0.926 | 0.0 | goals_done |
 | quick_responsiveness | office | responsiveness_loaded | seed_101 | ok | True | 0.963 | 0.0 | goals_done |

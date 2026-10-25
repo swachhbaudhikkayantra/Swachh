@@ -11,3 +11,10 @@ t,t_rel,event,detail
 ,,gate_ok,G6_map
 25.808000,15.060000,episode_start,25.808000
 ,,gate_ok,G7_rtabmap_alive
+205.848,,stuck_detected,
+,,stopping,stuck
+208.104000,197.356000,stop_received,208.104000
+208.104000,197.356000,contact_publishers,3
+208.104000,197.356000,contact_topic_alive,0
+208.104000,197.356000,ground_contacts_dropped,0
+208.104000,197.356000,recorder_stopped,208.104000
