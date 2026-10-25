@@ -162,3 +162,18 @@ Method: for every "Start occupied" line in `logs/nav2.log` (matched to the traje
 - **Spot-checks (raw CSV vs summary, tolerance 2%):** exploration office/102 GT path 67.114 m vs distance_gt_m 66.642 m (0.71%); navigation two_rooms_door/101 succeeded goals 16/20 in goal_events.csv = nav_goals_succeeded 16 / total 20 (exact); avoidance dynamic_sudden/101 1289 contact rows -> 1 event (gap > 0.5 s) = n_collisions 1 (exact). All pass.
 - **Sanity:** no percentage outside 0-100, no ATE > 10 m. rtf_true_mean 0.729-1.000 over 31 test episodes; **0 episodes below 0.7** (no LOW_RTF).
 - Diagnostic `diag_gt_localization` (apartment, dev seed 1, `--localization gt`) started 19:39:42; all bring-up gates passed incl. G6_map_server (first live run of gt localization mode).
+
+## 2026-10-25 19:49 IST DIAGNOSTIC RESULT (dev, not test split): --localization gt vs AMCL, apartment dev seed 1
+Run `~/eval_runs/diag_gt_localization/apartment/scripted_goals_random20/seed_001` (19:39:42-19:49:04, 9.4 min, inside the 15-min box; gt-localization mode started without fixes, all gates incl. G6_map_server passed; "rtabmap_stalled" log line expected, no RTAB-Map in this mode). Valid, goals_done at 519.9 s, rtf 1.0.
+| | AMCL (dev A4b, `dev8h_nav_amcl`) | GT localization (diagnostic) |
+|---|---|---|
+| goals | 19 | 20 |
+| Nav2 success | 73.7 % | 95.0 % |
+| **GT-verified success (0.30 m)** | **31.6 %** | **95.0 %** |
+| GT strict (0.15 m) | 10.5 % | 25.0 % |
+| path length ratio | 1.05 | 1.27 |
+| collisions | 0 | 0 |
+| "Start occupied" planner lines | 6 | 1 |
+| failure codes | 208 x2, 104 x3 | 208 x1 |
+| AMCL loc error | 0.343 m | n/a |
+Interpretation: with perfect localization on the same world, seed and goals, Nav2 + Smac Hybrid DUBIN reach 19 of 20 goals and Nav2's verdict matches ground truth; with AMCL the GT-verified rate drops to 31.6 % and Nav2 over-reports. This supports the test-split diagnosis: navigation success in this stack is limited by localization accuracy, not by the planner. Caveats: n = 1 episode per mode, dev world, and the A4b summary predates the goal-start tolerance (19 vs 20 goals counted). Not pooled with any test result; not in RESULTS_SO_FAR.md.
