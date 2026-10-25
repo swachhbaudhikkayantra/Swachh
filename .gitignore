@@ -42,3 +42,6 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Large evaluation data (rosbags, rtabmap.db, >5 MB): kept on victus only, see large_files/MANIFEST.md
+large_files/
