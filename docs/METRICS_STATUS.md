@@ -7,7 +7,34 @@ Stage legend:
 - **Valid run**: produced a value in at least one episode that passed the validity gates (images flowing, RTAB-Map alive), on the current pipeline.
 - **Campaign**: measured on the pre-registered test split with enough episodes for the planned confidence interval. Only this stage counts for the paper.
 
-Last update: 2026-10-22 ~03:40, R1 done (pilot2 evaluated, VALID, 600 s). Stack changed afterwards (local static layer, BackUp before Spin), so the confirmation episodes below are still to run (the user runs them).
+Last update: 2026-10-25 ~19:45, reduced 4-hour test campaign done on victus (see section CAMPAIGN RESULTS below). Older text below is the 2026-10-22 dev status.
+
+
+## CAMPAIGN RESULTS 2026-10-25 (reduced 4-hour campaign on victus; test split) — stage "Campaign"
+
+Machine: victus, RTX 5050 Laptop, headless EGL; freeze commit 92c7757 plus logged deviations (goal-start tolerance, extra navigation seeds 103/104). 31 test episodes: responsiveness 4 (2 valid), avoidance 6, exploration 9 (odometry noise on), navigation 12. Only `status: invalid` excluded (2 bare responsiveness episodes). rtf_true_mean 0.729-1.000, none < 0.7. Values: pooled mean with episode-level cluster-bootstrap 95 % CI from `~/eval_runs/<campaign>/report/` (n small: per-world CIs are wide). Health flags never exclude. Reduced-campaign limitations: `docs/FOUR_HOUR_PLAN.md`, `docs/EXECUTION_LOG.md`.
+
+**The navigation campaign (#10, #12, A14) measures Nav2 + AMCL on a ground-truth map (`--nav-map gt`), not the RTAB-Map pipeline.** Its ATE/RPE are AMCL estimate errors. SLAM metrics (#6-#8, #11) come from the exploration campaign.
+
+| # | Metric | Source campaign | Value (95 % CI) | Health (episodes) / notes |
+|---|---|---|---|---|
+| 1 | Coverage explored | exploration | 61.4 % [18.5, 88.0], n=9 | office 83.8, multi_room_loop 86.3, maze_dead_ends 14.3 (2 of 3 maze episodes never moved: explorer's 0.30 m goal-clearance rule found no sendable frontier); health OK 2 / SUSPECT 5 / BAD 4 (U 20 = campaigns that do not explore) |
+| 2 | Steps per episode | exploration | goals 15.2 [6.3, 21.0]; recoveries 81.9 [31, 116] | navigation: recoveries 147.6 [107, 184] per episode |
+| 3 | Total collisions | exploration / navigation / avoidance | 1.8 [0.4, 3.9] / 1.9 [0.5, 3.7] / 0.2 [0, 0.5] per episode | contact sensors; OK 29, U 2 |
+| 4 | % obstacle avoidance | exploration / navigation / avoidance | 98.4 % / 93.2 % / 80.0 % | |
+| 5 | Responsiveness (wall-clock controller latency) | responsiveness (loaded stack only, n=2) | cmd->motion 171.7 / 160.4 ms (p95 222 / 189); stop 270.4 / 249.7 ms; responsiveness_pct 100 % | bare stack invalid by design (RTAB-Map validity rules; user decision); loaded/101 ran with 3 concurrent sims (+5-10 % latency) |
+| 6 | ATE (SLAM) | exploration | 0.572 m [0.326, 0.858], n=7 | odom_corrupted_by_contact in 4 of 9 exploration episodes; ATE health over all campaigns OK 10 / SUSPECT 14 / BAD 3 / U 4 |
+| 7 | RPE (1 m) | exploration | 0.250 m [0.136, 0.438] | |
+| 8 | Map completeness | exploration | 47.7 % [15.1, 70.6] | maze_dead_ends low (see #1) |
+| 9 | Avoidance trial success | avoidance | 66.7 % (4 of 6): avoid_u_trap 3/3, avoid_dynamic_sudden 1/3 | computed from per-episode `trial_success`; make_report's pooled row is empty (report-generator gap, not fixed under the freeze); LOW_N |
+| 10 | Navigation success (GT-verified) | navigation (Nav2 + AMCL, GT map) | 23.4 % [2.8, 46.7], n=12 (178 goals; Nav2 reports 89 succeeded = 50 %) | BAD 14 / SUSPECT 4. Dominant failure: START_OCCUPIED (205): AMCL estimate 0.2-0.3 m off puts the footprint into wall cells (98 % / 97 % of events) while the true footprint is free (0-1 %); not the planner. Nav2's own success is higher (NAV_GT_DIVERGENCE) |
+| 11 | Loop closure precision / recall | exploration | 36.8 % [19.9, 94.3] / 28.2 % [12.6, 40.9] | BAD 5 |
+| 12 | Path length ratio | navigation | 1.209 [1.087, 1.273], n=9 | LOW_N 13 |
+| 13 | Method comparison | - | ON HOLD | |
+| 14 | Cleaning efficiency (secondary) | exploration | 0.055 [0.023, 0.084] | |
+| A12 | True RTF | all | 0.729-1.000 | exploration 3-slot waves 0.73-0.75 |
+| A14 | AMCL localization error | navigation | 0.318 m [0.183, 0.509] | the root of the START_OCCUPIED failures |
+| A15 | Noise robustness | - | not measured | noise-off condition dropped |
 
 ## Core metrics (user's list)
 
