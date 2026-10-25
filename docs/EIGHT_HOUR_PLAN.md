@@ -24,7 +24,7 @@
 | T+6:00 | D | Aggregate, report, verify, update tracker | 45 min |
 | T+6:45 | E | Buffer | 1 h 15 min |
 
-**Serial fallback:** if 2 parallel episodes are not possible (§4, gate G-SPEED), the cuts in §7 keep the total under 8 h.
+**Serial fallback:** if 2 parallel episodes are not possible (§5 A1, gate G-SPEED), the cuts in §7 keep the total under 8 h.
 
 ## 1. Before the clock starts (setup; not part of the 8 h)
 
