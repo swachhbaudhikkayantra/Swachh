@@ -427,6 +427,9 @@ def meta_extras(a, ent, spawn, goal_list=None):
         loc = _loc_mode(a)
         ex.update(goal_list=goal_list, nav_map=a.nav_map,
                   localization_mode=loc,
+                  # v2 files are only read by nav2_localization.launch.py (AMCL); gt mode uses nav2.launch.py
+                  nav_variant=('v1' if loc == 'gt' else
+                               (os.environ.get('VACUUM_NAV_VARIANT') or 'v1').strip().lower()),
                   t_world_map=[0.0, 0.0, 0.0] if gt_mode else [float(v) for v in spawn])
         if ent.get('dynamic_obstacles'):
             ex['dynamic_obstacles'] = {k: {'size': list(v.get('size', [0.4, 0.4]))}

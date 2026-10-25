@@ -49,8 +49,14 @@ def generate_launch_description():
     pkg_nav2 = get_package_share_directory('vacuum_nav2')
 
     nav2_yaml     = os.path.join(pkg_nav2, 'config', 'nav2_params.yaml')
-    amcl_yaml     = os.path.join(pkg_nav2, 'config', 'amcl_params.yaml')
-    nav_bt_xml    = os.path.join(pkg_nav2, 'behavior_trees', 'navigate.xml')
+    # Navigation variant: v1 (default, the frozen campaign stack) or v2 (START_OCCUPIED
+    # recovery in the BT + AMCL with more particles / more frequent updates).
+    nav_variant   = (os.environ.get('VACUUM_NAV_VARIANT') or 'v1').strip().lower()
+    if nav_variant not in ('v1', 'v2'):
+        raise RuntimeError('VACUUM_NAV_VARIANT must be v1 or v2, got %r' % nav_variant)
+    sfx           = '_v2' if nav_variant == 'v2' else ''
+    amcl_yaml     = os.path.join(pkg_nav2, 'config', 'amcl_params%s.yaml' % sfx)
+    nav_bt_xml    = os.path.join(pkg_nav2, 'behavior_trees', 'navigate%s.xml' % sfx)
 
     # ── Arguments ─────────────────────────────────────────────────────────────
     declare_map_path = DeclareLaunchArgument(
