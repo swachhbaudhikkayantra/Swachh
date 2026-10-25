@@ -82,3 +82,5 @@ t_world_map:
 - 0.0
 - 0.0
 - 0.0
+end_reason: stuck
+wall_elapsed_sec: 524.163206577301

@@ -1,4 +1,4 @@
-# Results index (auto-generated 2026-10-25 19:15)
+# Results index (auto-generated 2026-10-25 19:44)
 
 Light snapshot of `~/eval_runs` (no bags, no rtabmap.db). Full data stays on victus. Test-split campaigns are `quick_*`; `dev8h_*` are Phase A dev checks (not pooled); `_failed_attempts` are attempt-1 infra failures.
 
@@ -35,10 +35,16 @@ Light snapshot of `~/eval_runs` (no bags, no rtabmap.db). Full data stays on vic
 | quick_exploration_noise | office | frontier | seed_103 | ok | True | 0.729 | 0.0 | timeout |
 | quick_navigation | maze_dead_ends | scripted_goals_random20 | seed_101 | ok | True | 1.0 | 0.0 | stuck |
 | quick_navigation | maze_dead_ends | scripted_goals_random20 | seed_102 | ok | True | 1.0 | 0.0 | stuck |
+| quick_navigation | maze_dead_ends | scripted_goals_random20 | seed_103 | ok | True | 0.999 | 0.0 | stuck |
+| quick_navigation | maze_dead_ends | scripted_goals_random20 | seed_104 | ok | True | 1.0 | 0.0 | stuck |
 | quick_navigation | office | scripted_goals_random20 | seed_101 | ok | True | 1.0 | 0.0 | stuck |
 | quick_navigation | office | scripted_goals_random20 | seed_102 | ok | True | 1.0 | 0.0 | stuck |
+| quick_navigation | office | scripted_goals_random20 | seed_103 | ok | True | 1.0 | 0.0 | goals_done |
+| quick_navigation | office | scripted_goals_random20 | seed_104 | ok | True | 1.0 | 0.0 | stuck |
 | quick_navigation | two_rooms_door | scripted_goals_random20 | seed_101 | ok | True | 1.0 | 0.0 | goals_done |
 | quick_navigation | two_rooms_door | scripted_goals_random20 | seed_102 | ok | True | 1.0 | 0.0 | goals_done |
+| quick_navigation | two_rooms_door | scripted_goals_random20 | seed_103 | ok | True | 1.0 | 0.0 | goals_done |
+| quick_navigation | two_rooms_door | scripted_goals_random20 | seed_104 | ok | True | 1.0 | 0.0 | goals_done |
 | quick_responsiveness | office | responsiveness_bare | seed_101 | invalid | False | 1.0 | 0.0 | goals_done |
 | quick_responsiveness | office | responsiveness_bare | seed_102 | invalid | False | 0.926 | 0.0 | goals_done |
 | quick_responsiveness | office | responsiveness_loaded | seed_101 | ok | True | 0.963 | 0.0 | goals_done |

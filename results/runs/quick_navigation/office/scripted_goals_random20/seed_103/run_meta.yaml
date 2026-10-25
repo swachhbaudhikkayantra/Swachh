@@ -82,3 +82,5 @@ t_world_map:
 - 0.0
 - 0.0
 - 0.0
+end_reason: goals_done
+wall_elapsed_sec: 546.9429624080658

@@ -1,0 +1,22 @@
+t,t_rel,event,detail
+,,harness_started,
+,,gate_ok,G1_clock
+,,gate_ok,G2_controllers
+,,gate_ok,G3_gt_odom
+,,recorder_started,/home/hrishikesh/eval_runs/quick_navigation/maze_dead_ends/scripted_goals_random20/seed_104
+17.204000,0.156000,first_gt_sample,17.048000
+,,gate_ok,G5_nav
+22.168000,5.120000,first_est_sample,22.020000
+,,amcl_initial_pose_sent,3.500 0.000 1.207
+,,gate_ok,G4_tf
+,,gate_ok,G6_map_server
+37.612000,20.564000,episode_start,37.612000
+,,rtabmap_stalled,loop_events.csv not growing for 20 s
+453.648,,stuck_detected,
+,,stopping,stuck
+455.652000,438.604000,stop_received,455.652000
+455.652000,438.604000,final_map_missing,no /rtabmap/map received
+455.652000,438.604000,contact_publishers,3
+455.652000,438.604000,contact_topic_alive,1
+455.652000,438.604000,ground_contacts_dropped,0
+455.652000,438.604000,recorder_stopped,455.652000

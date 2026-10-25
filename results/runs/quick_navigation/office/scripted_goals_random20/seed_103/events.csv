@@ -12,3 +12,11 @@ t,t_rel,event,detail
 ,,gate_ok,G6_map_server
 32.136000,15.720000,episode_start,32.136000
 ,,rtabmap_stalled,loop_events.csv not growing for 20 s
+501.200000,484.784000,finished_signal,eval_done
+,,stopping,goals_done
+503.212000,486.796000,stop_received,503.212000
+503.212000,486.796000,final_map_missing,no /rtabmap/map received
+503.212000,486.796000,contact_publishers,3
+503.212000,486.796000,contact_topic_alive,0
+503.212000,486.796000,ground_contacts_dropped,0
+503.212000,486.796000,recorder_stopped,503.212000
