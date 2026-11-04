@@ -2,7 +2,7 @@
 
 Each file explains one part, starting with the big picture and ending in line-level detail. They were written by reading the code, and where documents and code disagree, the explainer follows the code and says so. Items marked "not found" or "unverified" were not confirmed.
 
-Start with 01, then read what you need.
+**New here? Read [00 The story](00_the_story.md) first**: the whole project as one narrative, with a link into the detailed file for every chapter. Then read what you need.
 
 | # | File | Covers |
 |---|---|---|

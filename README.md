@@ -13,6 +13,7 @@ An autonomous indoor cleaning robot: it explores and maps a room, plans paths ar
 | I want to… | Read |
 |---|---|
 | Run something end to end | [docs/USER_MANUAL.md](docs/USER_MANUAL.md) |
+| Read the whole project as one story | [explainer/00_the_story.md](explainer/00_the_story.md) |
 | Understand how everything works, high level to low level | [explainer/README.md](explainer/README.md) |
 | See the evaluation results and how they were produced | [docs/EVALUATION_FINDINGS_2026-10-25.md](docs/EVALUATION_FINDINGS_2026-10-25.md), [docs/METRICS_AUDIT_2026-10-25.md](docs/METRICS_AUDIT_2026-10-25.md) |
 | See which metrics were measured | [docs/METRICS_STATUS.md](docs/METRICS_STATUS.md) |
