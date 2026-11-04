@@ -1,0 +1,95 @@
+\subsection{Obstacle Avoidance Performance}
+\label{subsec:avoidance}
+
+Obstacle avoidance was evaluated in two scripted scenarios in the held-out test worlds: a static U-shaped trap (\texttt{avoid\_u\_trap}) and a box that emerges from behind a wall into the robot's path at 0.5~m/s (\texttt{avoid\_dynamic\_sudden}). Each scenario was run with three seeds, giving 6 valid episodes. Nav2 used the ground-truth map with AMCL localisation and no injected odometry noise, as in the navigation experiments. A trial counts as successful only if the robot reaches the goal without any contact with an obstacle. Contacts are recorded by contact sensors on the chassis and the camera mount, and the minimum clearance is the smallest distance between the robot footprint and an obstacle during the trial.
+
+\begin{table}[htbp]
+\centering
+\caption{Obstacle avoidance results. Each scenario has three episodes, so the intervals are wide. The Wilson interval is the 95\% interval for the trial success rate. Clearance is the mean of the per-episode minima; in the dynamic scenario these are 0.00, 0.21 and 0.29~m.}
+\label{tab:avoidance}
+\small
+\resizebox{\columnwidth}{!}{
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Scenario} & \textbf{Trial success} & \textbf{Goal reached} & \textbf{Contact events} & \textbf{Mean min.\ clearance (m)} \\
+\midrule
+\texttt{avoid\_u\_trap} & 3 of 3 & 3 of 3 & 0 & 0.15 \\
+\texttt{avoid\_dynamic\_sudden} & 1 of 3 & 2 of 3 & 1 & 0.17 \\
+\midrule
+Pooled & 4 of 6 (66.7\%; Wilson 30.0--90.3\%) & 5 of 6 & 1 & 0.16 \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\noindent\textit{Static trap.} The robot reached the goal without contact in 3 of 3 trials, with no contact events and a minimum clearance of about 0.15~m. The planner treats the walls of the trap as lethal and inflated cells, so a static obstacle is avoided at planning time. The trap is part of the ground-truth map given to Nav2, so this scenario tests planning around a known obstacle, not the detection of an unknown one.
+
+\noindent\textit{Dynamic obstacle.} Only 1 of 3 trials succeeded (Table~\ref{tab:avoidance_episodes}). In one seed (101) the robot touched the box (1 contact burst in total) and still reached the goal. In another seed (102) there was no contact and Nav2 reported success, but by ground truth the robot stopped outside the 0.30~m tolerance of the goal. Neither case is a clean test of reaction to a moving obstacle, and the third seed produced no encounter.
+
+To describe the reaction, the evaluation detects the first moment at which the box rectangle is within 1.5~m of the robot footprint (ground truth) and its centre lies within $\pm$34.7$^{\circ}$ of the robot heading, while the commanded forward speed has been at least 0.05~m/s for the preceding second. The response is the first command at or below 0.7 of the mean commanded speed of that second, or with an angular speed of at least 0.3~rad/s, and the deadline is 1.0~s. The response times were 2932, 1796 and 16~ms (Table~\ref{tab:avoidance_episodes}). The last value is an artefact of the rule: the commanded angular speed had already exceeded the threshold before the trigger, so it does not show a reaction to the box. In the other two seeds the first qualifying change came after more than one second, so the deadline was not met. The planner does not predict the motion of the box.
+
+\begin{table}[htbp]
+\centering
+\caption{Per-episode results of the dynamic scenario and the static trap.}
+\label{tab:avoidance_episodes}
+\small
+\resizebox{\columnwidth}{!}{
+\begin{tabular}{llcccccc}
+\toprule
+\textbf{Scenario} & \textbf{Seed} & \textbf{Success} & \textbf{Goal reached} & \textbf{Contacts} & \textbf{Clearance (m)} & \textbf{Response (ms)} & \textbf{Replans per goal} \\
+\midrule
+\texttt{dynamic} & 101 & 0 & 1 & 1 & 0.00 & 2932 & 81 \\
+\texttt{dynamic} & 102 & 0 & 0 & 0 & 0.21 & 1796 & 47 \\
+\texttt{dynamic} & 103 & 1 & 1 & 0 & 0.29 & 16 & 36 \\
+\texttt{u\_trap} & 101 & 1 & 1 & 0 & 0.16 & -- & 19 \\
+\texttt{u\_trap} & 102 & 1 & 1 & 0 & 0.15 & -- & 17 \\
+\texttt{u\_trap} & 103 & 1 & 1 & 0 & 0.15 & -- & 19 \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\noindent\textit{Replanning.} Both Nav2 behaviour trees recompute the global path at 1~Hz, so the number of plans per goal in Table~\ref{tab:avoidance_episodes} grows with the time spent on the goal. The delay between Nav2 accepting a goal and publishing the first plan was short in the avoidance trials: the median over the 6 goals was 2~ms and the maximum 12~ms. In the navigation experiments (Section~\ref{sec:slam_results}) 184 goals were sent. For 62 of them the planner never published a plan before the episode ended, and 1 had no acceptance event, so the latency is defined for 121 goals. Among these the median was 8~ms and 90 received a plan within 100~ms (90 of 184 goals overall), but the distribution has a long tail (95th percentile 46108~ms). The tail and the goals without a plan are consistent with the repeated start-occupied refusals described in Section~\ref{sec:slam_results}, but the two were not separated, so the mean latency (6372~ms) is not a useful summary. The time stamps have a resolution of about 4~ms, so values of a few milliseconds are at the limit of what can be measured.
+
+\noindent\textit{Limitations.} Each scenario has three episodes, so one trial changes the success rate by 33 percentage points and no scenario supports a statistical comparison. The result shows that a static trap is handled and that a suddenly appearing obstacle is not reliably avoided. The contact count is a count of contact bursts, so one continuous contact can count more than once, and the minimum clearance is slightly optimistic because the wheels protrude about 2~cm beyond the modelled footprint. The avoidance episodes ran at a mean real-time factor of 0.80 to 1.00 (momentary values were lower) because three simulations shared one laptop, which matters for a scenario with a moving obstacle; the lowest values belong to the dynamic scenario. The simulated camera has a 69.4$^{\circ}$ field of view and no sensor noise, and objects closer than 0.2~m are invisible to the depth scan, so the physical robot may behave differently.
+
+\subsection{End-to-End System Performance}
+\label{subsec:e2e}
+
+A single measured delay from a camera frame to an actuator command does not exist yet, because the stages were measured on different platforms. Detection was benchmarked on the Jetson Orin Nano, the navigation stack was evaluated only in the Gazebo simulation on a laptop, and the decision module and the Arduino link were not timed. Table~\ref{tab:latency} therefore lists each stage with the platform on which it was measured, and the total is left open instead of summing figures from different machines.
+
+\begin{table}[htbp]
+\centering
+\caption{End-to-end latency by stage. Values from different platforms are not added.}
+\label{tab:latency}
+\small
+\resizebox{\columnwidth}{!}{
+\begin{tabular}{llll}
+\toprule
+\textbf{Stage} & \textbf{Latency (ms)} & \textbf{Platform} & \textbf{Status} \\
+\midrule
+Camera capture and decode & [TBD] & Jetson Orin Nano & not measured (the Jetson benchmark used stored frames) \\
+YOLOv8n inference, TensorRT INT8 & 12.89 $\pm$ 2.75 & Jetson Orin Nano & measured \\
+YOLOv8n inference, TensorRT FP16 & 15.03 $\pm$ 2.81 & Jetson Orin Nano & measured \\
+YOLOv11n-seg inference, TensorRT FP16 & 17.10 $\pm$ 2.68 & Jetson Orin Nano & measured (INT8 build failed) \\
+RF-DETR Medium inference & [TBD] & Jetson Orin Nano & not measured (see Table~\ref{tab:edge-runtime} for a PC) \\
+SLAM update (RTAB-Map, 1~Hz, median / P95) & 153 / 440 & simulation host (laptop) & measured, not on the Jetson \\
+Path planning (goal accepted to first plan, median of the 121 goals that received a plan) & 8 & simulation host (laptop) & measured, long tail \\
+Velocity command to 50\% of commanded speed (mean) & 166 & simulation host (laptop) & measured \\
+Stop command to standstill (mean) & 260 & simulation host (laptop) & measured \\
+Decision module & [TBD] & Jetson Orin Nano & not measured \\
+Arduino command, wire time at 115200 baud (35-byte command) & $\geq$ 3.0 & serial link & lower bound, not a measurement \\
+Arduino acknowledgement round trip & [TBD] & Jetson and Arduino & not measured \\
+\midrule
+\textbf{Total} & -- & -- & not defined \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\noindent\textit{Detection.} The Jetson figures come from a separate benchmark (L4T R36.4, CUDA 12.6, TensorRT 10.3, ONNX Runtime with the TensorRT execution provider, three trials of 150 frames per model) on frames held in memory, without camera capture. With TensorRT, YOLOv8n needs 12.9~ms per frame at INT8 (77.6~FPS, 8.3~W) and 15.0~ms at FP16, which is well inside the 33~ms budget of a 30~FPS camera; the same model on the CPU needs 188~ms. If the frames are instead streamed over Wi-Fi from a separate camera board, an estimated one-way network transit of 6.55~ms (half the measured round trip, the same for every frame) and 5.2 to 8.8~ms of JPEG decoding are added, which limits the end-to-end rate to 31.7~FPS even with INT8 inference. These Jetson results differ from the runtime table of Section~\ref{subsec:edge}, which was measured on a PC and in which INT8 is slower than FP32; the two must be reconciled before submission by stating the runtime and platform of each.
+
+\noindent\textit{Mapping and navigation in simulation.} RTAB-Map processed 3755 updates across the exploration episodes. A full update (image conversion, graph update, map update and publication) took a median of 153~ms and a 95th percentile of 440~ms, and the log reports a median delay of 156~ms between the image time stamp and the end of the update. The times depend strongly on the load of the host: they were 43~ms in the maze, where the robot was mostly stationary and two simulations shared the machine, and 170 and 247~ms in the office and multi-room worlds with three simulations in parallel. They were measured while the CPU was heavily loaded by the simulation and say little about the Jetson. The map is updated once per second, and the 95th percentile is below that period. The memory of the map-building process could not be isolated. The recorder sums the resident memory of every process on the host whose command line contains ``rtabmap'', and two or three simulations ran in parallel, so the recorded peak (1626~MB on average, maximum 1974~MB) is a total over all concurrent instances, not a per-process figure. The combined footprint of SLAM, Nav2 and the detector on the 8~GB Jetson has not been measured, and longer sessions will enlarge the map.
+
+\noindent\textit{Command response.} With the SLAM stack running and the explorer disabled, the wall-clock time from a velocity command until the robot reached 50\% of the commanded speed was 166~ms on average, and the corresponding stop response was 260~ms (2 episodes). These values are dominated by the configured acceleration limits of the controller (1.0~m/s$^2$ and 2.0~rad/s$^2$), and the trials include rotations, so the 50\% criterion applies to angular speed as well. The two runs without the SLAM stack are excluded because the validity rules require RTAB-Map updates.
+
+\noindent\textit{Serial link.} A command such as \texttt{ARM:PICK:bottle,10.0,5.0,30.0,0.85} has 35 bytes including the line end. At 115200~baud with 8N1 framing each byte takes ten bit times, so the transmission alone takes at least 3.0~ms. The acknowledgement and the processing time on the Arduino were not measured.
+
+\noindent\textit{What is missing.} The chain from detection to a completed pick or vacuum action has not been measured end to end. In the current implementation the vision module sends the pick command, but the Arduino firmware in the repository does not implement it, so no pick success rate or detection-to-action delay can be reported. We plan to time-stamp each stage in a single run on the robot (frame capture, end of inference, decision, command sent, acknowledgement received) and report the distribution of the total, together with the task-level success rate.

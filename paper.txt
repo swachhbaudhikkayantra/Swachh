@@ -1,0 +1,1389 @@
+\documentclass{ieeeaccess}
+%Adjusted 05/13/2026 at the byline author names
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{float}
+\usepackage{subcaption}
+\usepackage{rotating}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{hyperref}
+\usepackage{xurl}
+\usepackage{bm}
+\makeatletter
+\AtBeginDocument{\DeclareMathVersion{bold}
+\SetSymbolFont{operators}{bold}{T1}{times}{b}{n}
+\SetSymbolFont{NewLetters}{bold}{T1}{times}{b}{it}
+\SetMathAlphabet{\mathrm}{bold}{T1}{times}{b}{n}
+\SetMathAlphabet{\mathit}{bold}{T1}{times}{b}{it}
+\SetMathAlphabet{\mathbf}{bold}{T1}{times}{b}{n}
+\SetMathAlphabet{\mathtt}{bold}{OT1}{pcr}{b}{n}
+\SetSymbolFont{symbols}{bold}{OMS}{cmsy}{b}{n}
+\renewcommand\boldmath{\@nomath\boldmath\mathversion{bold}}}
+\makeatother
+
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+%Your document starts from here ___________________________________________________
+\begin{document}
+\history{Date of publication xxxx 00, 0000, date of current version xxxx 00, 0000.}
+\doi{10.1109/ACCESS.2024.0429000}
+
+\title{Design and Development of Navigation System and Trash Detection for Swachh Bauddhika Yantra}
+
+\author{
+\uppercase{Veena N. Hegde}\authorrefmark{1},
+\uppercase{Umadevi Venkatappa}\authorrefmark{2},
+\uppercase{Hrishikesh R Prasad}\authorrefmark{2},
+\uppercase{Sanjana Srinivas}\authorrefmark{2},
+\uppercase{Shashank U}\authorrefmark{2},
+\uppercase{Siripurapu Manaswi}\authorrefmark{2},
+\uppercase{Shreesha S}\authorrefmark{1},
+\uppercase{Rajat Chandrashekhar Athani}\authorrefmark{1},
+\uppercase{Raviteja M}\authorrefmark{1},
+AND \uppercase{Preetham N}\authorrefmark{1}
+}
+
+\address[1]{Department of Electronics and Communication Engineering, B.M.S. College of Engineering, Bengaluru, Karnataka 560019, India}
+\address[2]{Department of Computer Science and Engineering, B.M.S. College of Engineering, Bengaluru, Karnataka 560019, India}
+\tfootnote{This work was supported in part by Faculty Research Program Scheme (FRPS) (Scheme 3), B.M.S. College of Engineering.}
+
+\markboth
+{Hegde \headeretal: Navigation and Trash Detection for Swachh Bauddhika Yantra}
+{Hegde \headeretal: Navigation and Trash Detection for Swachh Bauddhika Yantra}
+
+\corresp{Corresponding author: Veena N. Hegde (e-mail: veenahegde.ece@bmsce.ac.in).}
+
+
+\begin{abstract}
+With the advancement of technology in three major fields, i.e., Artificial Intelligence, Computer Vision and Robotics over the last decade, autonomous systems have been increasingly advancing in performing complex real world tasks such as autonomous cleaning.
+This work presents the navigation and trash detection subsystems of Swachh Bauddhika Yantra (SBY), an autonomous indoor cleaning robot with a robotic arm to pick up trash. The robot's hardware performs manual mode. The software was developed and tested in Gazebo simulator, while the trash detectors were trained on a custom-made dataset and benchmarked on Jetson Orin Nano. The navigation software builds a two dimensional map using the depth camera and wheel odometry sensors, selects the unexplored spaces as goals, follows planned paths with a predictive controller. The exploration covered a mean of 61.4\% of reachable floor over nine episodes, 86.3\% in a multi-room world being the highest. 29.2\% of the 178 navigation goals set on a known map were reached within 0.30 m of the true positions. For trash detection, a custom annotated dataset of 877 images consisting of 8 classes was created, and three detector models (YOLOv8n, YOLOv11n-seg and RF-DETR), all exceeding 0.92 mean average precision (mAP) at an overlap threshold of 0.5. On Jetson Orin Nano, the three detectors ran at a maximum of 79 frames per second (FPS) at half precision, drawing 12.7 to 14.9 watts.
+\end{abstract}
+
+\begin{keywords}
+Autonomous Navigation, Edge computing, Gazebo Simulation,  indoor cleaning robot, Jetson Orin Nano, Object Detection,  Simultaneous Localisation and Mapping (SLAM), Trash Detection.
+\end{keywords}
+
+\titlepgskip=-21pt
+
+\maketitle
+
+\section{Introduction}
+
+In recent years, as the technology has advanced, the convergence of artificial intelligence (AI), computer vision (CV), and robotics \cite{cohen2025fusion} has enabled the development of autonomous systems capable of performing complex real-world tasks such as indoor cleaning~\cite{ramalingam2022}. Existing approaches rely heavily on manual effort,
+leading to inconsistency and lower productivity, especially in large indoor spaces~\cite{memmesheimer2024cleaning}. Because of this limitation, development of automated intelligent cleaning systems can help reduce human intervention.
+Such systems can also improve efficiency and performance~\cite{jagtapexploring}. These systems will consist of various component like Path Planning, Trash detection, Picking of Trash, Vacuum cleaning of dust and Floor cleaning~\cite{megalingam2025cleaning}. This work focuses on developing Path Planning, Trash detection and Vacuum cleaning. The feasibility of the work is supported by the use of existing technologies such as NVIDIA Jetson Orin Nano for real-time processing~\cite{nvidia2023jetson}, Visual Simultaneous Localization and Mapping (SLAM) for mapping~\cite{campos2021orb}, and deep learning models for object detection such as You Only Look Once (YOLO) version 8 (YOLOv8) ~\cite{varghese2024yolov8}. Prior research and existing implementations including autonomous cleaning robots~\cite{prayash2019designing}, Internet of Things (IoT) enabled systems~\cite{burman2020iot}, and SLAM based navigation~\cite{al2024review} indicate that these
+ components are individually well understood and implementable \cite{loganathan2023systematic}. Leveraging these technologies, this work is based upon it.
+
+Current systems, both industrial and commercial, largely focus on floor cleaning tasks such as vacuuming, with advanced navigation and obstacle avoidance capabilities~\cite{eltwab2025intelligent}. Existing studies address navigation, IoT integration~\cite{hussin2024smart}, and cleaning efficiency, but do not provide an end-to-end solution combining object detection, robot motion control, and obstacle avoidance capabilities~\cite{memmesheimer2024cleaning}. This gap shows the need for more exploration and supports the choice of this work as important.
+
+The novelty of this work lies in setting foundation of combining multiple subsystems of autonomous navigation, AI-based trash detection, and robotic arm-based waste collection into a centralized platform. Unlike conventional cleaning robots that clean surfaces \cite{eltwab2025intelligent}, this system actively identifies, classifies, and collects the waste objects. To support different operational needs, the system offers manual, semi-automatic, and fully automatic modes allowing flexibility based on use-case requirements. The inclusion of omnidirectional mobility further enhances motion in constrained indoor environments~\cite{patruno2024vision}. This overall integration represents a significant advancement over existing individual subsystems~\cite{nahavandi2025comprehensive}.
+
+This paper reports the navigation and trash-detection subsystems of Swachh Bauddhika
+Yantra (SBY), an indoor cleaning robot with robotic arm for picking up trash, with it hardware prototype performing manual mode.
+
+% Swachh Bauddhika Yantra addresses the need for autonomous indoor cleaning systems that can navigate, detect waste, and take appropriate cleaning actions. The proposed system combines perception, mapping, decision-making, and actuation into a single robot platform.
+The main contributions of this work are as follows.
+\begin{itemize}
+    \item  To develop navigation system for the prototype of SBY and testing in the gazebo simulated environment by utilizing appropriate SLAM techniques.
+
+    \item To implement deep learning based Trash detection modules for real time identification and classification of class of trash objects for robotic arm of SBY.
+
+\item To create custom dataset for trash detection to train deep learning models.
+
+\item To assess the performance of the subsystems of SBY by analyzing the evaluation metrics such as mapping accuracy, trash detection metrics (mean average precision,mAP), overall detection accuracy, floor coverage and navigation accuracy.
+
+\end{itemize}
+% This paper is organised as follows. The Related Work section reviews the literature on autonomous navigation and SLAM, object detection for robotics, trash detection, and integrated cleaning robots, and ends with the gaps that this work addresses. The Methodology section describes the proposed system, including its hardware, software design, and operating modes. The Trash Detection Module section presents the custom dataset, the augmentation and hyperparameter tuning procedures, and the YOLO and RF-DETR models. The Navigation and Path Planning section describes the RTAB-Map mapping configuration, the frontier-based explorer, and the Nav2 planner and controller. The Implementation section covers the edge deployment and quantisation of the detectors on the NVIDIA Jetson Orin Nano. The Experimental Results section reports the detection benchmarks and the simulated navigation, obstacle avoidance, and efficiency results. The Conclusion and Future Work section summarises the study, its limitations, and the planned integration and hardware validation.
+
+This paper is organised as follows. The Related Work section consists of the literature survey on SLAM, object detection, trash detection and integrated cleaning robots. The Methodology section describes the proposed system, going further detailed into hardware, software, and operating modes. The Trash Detection Module section explains the dataset and the detection models. The Navigation and Path Planning section presents the mapping, exploration, and path planning. The Implementation section covers edge deployment on the Jetson Orin Nano. The Experimental Results section reports the evaluation, while the Conclusion and Future Work section provides summary of the study and outlines the next steps.
+
+\section{Related Work}
+\label{sec:related}
+\subsection{Autonomous Navigation and SLAM}
+The authors of~\cite{loganathan2023systematic} have done a comprehensive review of path planning strategies for autonomous mobile robots and given analysis on the strengths and  downsides.
+The review in \cite{katona2024obstacle}classifies many obstacle avoidance and path planning algorithms under both Global/Local and Classical/Heuristic classification schemes. Also included a comparison table outlining the differences in properties like convergence and computation time.
+% CITED IN MULTIPLE PLACES WITH EXPLANATION: THIS PIECE IS REDUNDANT
+% This \cite{ramalingam2022optimal} paper proposes a reconfigurable floor-cleaning robot hTetro. Utilises RGBD CCTV camera which combines with an DEEP SORT algorithm for human tracking. It uses an SSD Mobilenet model to detect stains, footsteps, etc while also convering 2D detections to 3D coordinates including depth. Results show 90\% accuracy for SSD Mobilenet model, along with a 15\% reduction in navigation time compared to traditional methods.
+% PAPER REMOVED
+% The authors of \cite{chen2022velocity} address a weakness in ROS's move\_base navigation stack. The problem is that the costmaps with an 9.56 second difference over average cost when compared to existing methods. This was done by combining Extended Kallaman Filter (EKF) with laser ranging which help estimate velocity of dynamic obstacles.
+
+This paper~\cite{adiuku2024improved} demonstrates a hybrid navigation system for robots by combining Rapidly exploring Random Tree(RRT) - integrated in Robot Operating System (ROS) stack. Results show zero collision occurrence when tested in Gazebo environment while exhibiting longer time duration for the same amount of distance (18 min for 627.8m).
+% PAPER REMOVED
+% This paper \cite{li2024dynamic}utilities dynamic programming and artificial potential field for path planning. The proposed approach combines three separate methods. The authors have provided theoretial guarentees. The results show promising perforamcne with a 
+
+% REDUNDANT EXPLAINED ELSEWHERE TOO
+% This paper \cite{eltwab2025intelligent} shows design and implementation of a Multi-Functional Cleaner Robot which can do sweeping, mopping along with object handling via a 3 Degree of Freedom (DoF) robotic arm. Results show a 100\% obstacle avoidance success, 95\% sweeping efficency, 93\% mopping efficiency after conducting multiple trials, which has high overlap in concept with this paper.
+% PAPER REMOVED
+% The authors of \cite{wei2025ros} have surveyed ROS and given a systemic review of ROS architecture along with a pipeline of SLAM while also presenting multiple path planning, obstacle avoidance algorithms present along with their tradeoffs. Finally they also present technical challenges with sensor fusion, obstacle perception ending with a emerging trends section.
+
+\cite{zhao2022research} proposes a complete framework for a four wheeled robot utilising ROS based technologies such as SLAM based mapping and path planning. They utilised Karto SLAM, A* planning, Dyanamic window approach (DWA) obstacle avoidance achieving an average mapping error rate of 0.158 m and an average relative error of 1.22\% in simulated environments. The slip steering had an average slip rate of 0.45, which was used to improve pose estimation accuracy.
+
+
+
+
+\subsection{Object Detection for Robotics}
+The authors of~\cite{cimurs2022leveraging} proposed a semi-supervised deep reinforcement learning (DRL) framework for floor cleaning robot navigation, where expert demonstration trajectories were collected in simulation and key motion features distance to obstacles and heading difference were extracted and weighted to shape the reward function. The proposed work ~\cite{hemalatha2026cleannav} presents CleanNav, which integrates YOLOv8 with MobileNetV3 in a dual-model detection pipeline for a consumer-grade cleaning robot, where objects are first detected and selectively relocated before the robot resumes its cleaning trajectory. The researchers of ~\cite{ou2024autonomous} implemented sensor fusion-based autonomous mobile robot navigation using deep reinforcement learning, where Light Detection and Ranging (LiDAR) and red-green-blue (RGB) camera inputs were fused and the policy was trained entirely in simulation without hand-crafted maps and the model was successfully generalised to unseen obstacle layouts during testing.
+% REJECTED
+% The authors of ~\cite{van2024continual} reviewed strategies for mitigating catastrophic forgetting in neural networks, benchmarking regularisation, replay, and architectural isolation methods across sequential tasks, with findings relevant to maintaining detection accuracy in continuously operating robotic systems. 
+% REJECTED
+% A power consumption modelling approach was adopted in ~\cite{wang2024fault} for fault detection and diagnosis of a three-wheeled omnidirectional mobile robot, where mechanical faults were identified purely from motor current signatures without additional hardware instrumentation. 
+The work in ~\cite{zhang2025environment} proposed a task-execution-oriented environment modelling framework for service robots that structures spatial and semantic information to optimise task planning, achieving measurable reductions in replanning overhead compared to geometry-only representations.
+
+The authors of ~\cite{ye2023dynamic} implemented real time object detection for home service robots operating in dynamic indoor environments and evaluated multiple deep learning architectures against speed-accuracy tradeoffs for close-range detection, demonstrating practical deployment feasibility on standard embedded hardware. The proposed work ~\cite{vo2026object} integrates YOLO with oriented bounding box (OBB) predictions for robot grasping, where rotated box predictions were shown to improve grasp pose estimation accuracy over axis-aligned detections on cluttered bin-picking benchmarks. The researchers of ~\cite{lee2024panopticus} developed Panopticus, an omnidirectional 3D object detection system for resource-constrained edge devices that uses an adaptive multi-branch inference strategy to enable full 360-degree environmental perception with significantly lower latency than prior omnidirectional detection baselines.
+% The authors of ~\cite{tyagi2025deploying} deployed real-time object detection and obstacle avoidance on Edge-AI hardware for smart mobility applications and validated the system against end-to-end latency and power consumption requirements under safety-critical navigation conditions.
+A systematic benchmark of multiple YOLO variants on the NVIDIA Jetson Orin platform was conducted in ~\cite{shin2022deep}, where TensorRT optimised deployments were shown to substantially outperform native PyTorch inference, providing practical guidelines for frames per second (FPS)-versus-mAP tradeoffs across model scales. The work in ~\cite{patel2024real} evaluated real-time object detection and recognition on the Jetson Orin Nano and confirmed its viability for embedded robotic perception at acceptable detection accuracy on standard benchmarks. The researchers of ~\cite{santos2024real} analysed YOLOv7 performance specifically on edge devices for real-time inference, measuring throughput and accuracy degradation relative to server-class hardware and demonstrating that smaller model variants preserve near-baseline mAP at significantly higher FPS on embedded platforms. A cross-platform benchmark of deep learning object detection algorithms was carried out in ~\cite{le2026benchmark} for edge-based robotic applications, where comparative latency and power profiles were reported across ARM and graphics processing unit (GPU) based platforms to inform model selection for resource-limited deployments.
+% REJECTED
+% The authors of ~\cite{bonnin2022methodology} proposed a reproducible evaluation methodology for low-cost embedded devices including Raspberry Pi and NVIDIA Jetson Nano for robotic perception, establishing a systematic protocol for assessing inference speed, accuracy, and energy consumption to guide pre-deployment hardware selection. 
+
+The authors of ~\cite{soliman2025multi} applied post-training quantization and quantization-aware training to YOLOv11n-seg, achieving a $3.2\times$ increase in inference speed, a $2.7\times$ reduction in memory footprint with less than 2\% mAP loss compared to the full-precision baseline. The proposed work ~\cite{aljami2026benchmarking} benchmarked multiple YOLOv8 variants on the NVIDIA Jetson Orin NX platform under varying input sizes and batch configurations, finding that TensorRT-accelerated deployment outperformed native PyTorch by 17.7\%.
+% REJECTED
+% The researchers of ~\cite{gorvadiya2025energy} proposed structured pruning and post-training quantization methods for deep learning models targeting energy-efficient deployment, demonstrating reduced memory footprint and power consumption while preserving task-level detection accuracy suitable for battery-constrained robotic systems.
+% REJECTED
+% A pruning and quantization approach was applied to YOLOv8 in ~\cite{cheng2024yolo} to produce a lightweight network variant, achieving faster inference on resource-constrained hardware with detection performance comparable to the full-scale baseline model.
+The authors of ~\cite{suchy2026review} benchmarked the large variants YOLOv8l and RT-DETR-l across Raspberry Pi 5 and NVIDIA Jetson Orin NX platforms, finding that Central Processing Unit (CPU) only execution on the Raspberry Pi 5 is impractical due to multi-second per-frame latency, whereas on the Jetson Orin NX, YOLOv8s sustained 108.8 FPS at 19.1 W average power. The proposed work ~\cite{isenkul2025energy} combined pruning, quantization, and hardware-specific optimisation into an energy-aware pipeline for real-time video analysis, enabling efficient deployment on target edge devices without retraining from scratch.
+% REJECTED
+% The researchers of ~\cite{owen2025optimizing} optimised transformer-based detection models for deployment on Raspberry Pi and NVIDIA Jetson devices for on-site waste recognition, validating accuracy retention and latency under strict memory constraints without reliance on cloud inference.
+
+The authors of ~\cite{fletcher2024image} demonstrated that image enhancement preprocessing incorporating contrast normalisation and sharpening significantly boosts feature matching quality in low-light and textureless environments, leading to improved visual localisation and mapping performance in robotics applications. A survey of deep learning-based small object detection was conducted in ~\cite{wei2024review}, where feature pyramid enhancement, super-resolution-based, and attention-based methods were categorised and compared across standard benchmarks. The researchers of ~\cite{mirzaei2023small} comprehensively reviewed small object detection and tracking algorithms, addressing challenges of low resolution, motion blur, and dense occlusion that are directly relevant to detecting floor-level debris in robot vacuum deployment scenarios.
+
+
+
+\subsection{Trash Detection and Classification}
+The authors of ~\cite{mustapha2025hybrid} proposed a hybrid deep learning model combining YOLOv8 for object localisation with a convolutional neural network (CNN) classifier for compost versus non-compost waste categorisation, achieving an accuracy of 88.3\%. The proposed work ~\cite{xiao2024enhancing} enhanced YOLOv8 for waste detection by introducing an Adaptive Inner-IOU bounding box regression mechanism and a FlexiC2f feature fusion module, improving mAP over the standard YOLOv8 baseline. The researchers of ~\cite{arishi2025real} trained a YOLOv8-CBAM model incorporating five data augmentation techniques and two attention mechanisms for real-time household waste detection, achieving a mean mAP of 89.5\% to a 4.2\% improvement over the standard YOLOv8 baseline. A comparative evaluation of YOLO versions v8 through v12 for smart real-time waste sorting was conducted in ~\cite{azizi2025real}, where YOLOv12 achieved a mean average precision of 78\%, outperforming earlier YOLO variants across the evaluated waste categories. The authors of ~\cite{vieri2024enhancing} trained multiple YOLOv8 variants on a custom 7,130-image waste dataset, with YOLOv8l recording an mAP@0.5:0.95 of 89.7\%, an mAP@0.5 of 93\%.
+
+The proposed work ~\cite{sumon2026floating} benchmarked YOLOv8 (v8-v10), RT-DETR, and Faster R-CNN variants for floating waste detection on inland waterways, where RT-DETR-X recorded the highest individual mAP50 of 86.3\%,a weighted box fusion ensemble of Faster R-CNN and RT-DETR-L further improved the mAP50 to 88.3\%. The researchers of ~\cite{wu2024research} optimised YOLOv8 for intelligent solid waste classification using attention modules and an enhanced feature pyramid network, recording improvements of 5.4\% in mAP@0.5 and 6.1\% in mAP@0.5:0.95 over the standard YOLOv8s baseline on a self-constructed solid waste dataset. The authors of ~\cite{chen2022robot} developed an autonomous construction and demolition waste sorting robot integrating a custom SLAM method for real-time localisation demonstrating robust identification of multiple C\&D waste categories across complex site environments. The proposed work ~\cite{lahoti2024multi} presents a multi-class waste segregation system employing YOLOv5 for detection interfaced with a 3D-printed robotic arm yielding an 80\% segregation accuracy. The researchers of ~\cite{romano2025deep} proposed a deep learning method for floating garbage debris recognition on a high-performance edge computing platform, achieving real-time throughput suitable for unmanned aerial vehicle (UAV)-mounted and waterway monitoring deployments.
+
+A vision based approach for waste object localisation and geometric feature extraction from point clouds was presented in~\cite{aarthi2023vision}, enabling a robotic manipulator to accurately estimate grasp poses on irregularly shaped refuse items for autonomous floor-level pickup. The authors of ~\cite{lv2023machine} implemented machine learning-based garbage detection combined with depth-based 3D spatial localization to derive precise grasp coordinates, allowing an intelligent robotic system to autonomously pick up waste items placed in unstructured floor environments. 
+% REJECTED PAPER
+% The proposed work ~\cite{xia2024yolo} presents YOLO-MTG, a lightweight YOLO variant for multi-target garbage detection that uses a MobileViTv3 backbone, EfficientFormer-enhanced feature extraction blocks, and a feature-reuse neck design, achieving 95.4\% mAP with only 3.4M parameters and outperforming multiple state-of-the-art methods on a self-built multi-category dense garbage dataset.
+
+
+
+\subsection{Integrated Cleaning Robots}
+% Is this even required?
+% Over the past few years, cleaning robot research has progressively shifted from single-funtion systems towards integrated platforms which are capable of navigating,detecting,and physically interacting with their environment. 
+
+~\cite{ramalingam2022} proposed a selective cleaning framework for the reconfigurable floor cleaning robot hTetro, combining an Single Shot MultiBox Detector (SSD) Mobilenet V2 detection model for identifying stains,foot stains,and trash with a Deep SORT human-tracking algorithm to trace high-traffic regions, and an Ant Colony Optimization based waypoint path planner to navigate to dirty zones efficiently. The system achieved 90\% detection accuracy across stain and trash detection on the floor.
+
+The authors of ~\cite{joon2021design}  built a four-wheel-drive cleaning robot with a four-degrees-of-freedom robotic arm, a vacuum system connected to the arm's end, and a LiDAR sensor and web camera for sensing the surroundings. In two indoor tests, each with multiple obstacles, the robot's position error dropped below 1\% within 52s in the first test and 110s in the second, with no collisions in either case.
+
+~\cite{eltwab2025intelligent}, talks about a Multi-Functional Cleaner Robot (MFCR) combining a three-degrees-of-freedom (3-DOF) robotic arm, multiple cleaning modes (sweeping, mopping, suction), and obstacle sensing using ultrasonic, infrared, and LiDAR sensors, all coordinated by an Arduino Mega microcontroller. The robot achieved a 95\% sweeping efficiency, 93\% mopping efficiency, and 100\% obstacle avoidance.
+
+% The authors of ~\cite{hemalatha2026cleannav} proposed CleanNav, which advances beyond prior system by pairing a vision-based detection pipeline with both adaptive navigation and physical manipulation. Object detection combines YOLOv8 for localization and MobileNetV3 for fine-grained classification through a weighted voting mechanism, achieving 96.4\% mAP@50 and 99.2\% classification accuracy respectively on a custom dataset of 16 household object categories. The fusion corrected misclassifications between visually similar items such as pencil versus pen and cell phone versus remote. Navigation is handled by a PPO-trained reinforcement learning model which achieved 60.44\% average area coverage with 6 total collisions. A 5-DOF robotic arm performs object relocation, reaching 90\% pickup success for lightweight objects across 20 trials per object but dropping to approximately 23\% for heavier or irregularly shaped items due to servo torque limitations and the two-finger claw geometry. Despite this breadth of integration, all vision processing and decision-making run on an external host computer rather than onboard, the system maintains no persistent map of the environment, relying solely on ultrasonic sensor readings as RL inputs.
+
+% \vspace{-18.0em}
+
+\subsection{Summary of Gaps}
+\noindent The research gaps inferred from the literature study are:
+\begin{enumerate}
+    \item Reliance on external processing for deep-learning-based object detection in cleaning robots.
+    \item Lack of integration of onboard deep-learning-based trash detection with autonomous navigation in cleaning robots.
+\end{enumerate} 
+\section{Methodology}
+\label{sec:system_overview}
+\subsection{Overview of Proposed System}
+The system is organized into four distinct layers namely Interface Layer, Sensor Layer, Processing Layer and Actuator Layer.
+Fig.~\ref{fig:architecure} represents the visual overview of each layer along with the components involved.
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=\textwidth]{images/SBY Architecture.drawio (3).png}
+\caption{Architecture of Swachh Bauddhika Yantra.}
+\label{fig:architecure}
+\end{figure*}
+
+The user interacts with the system at the interface layer, it provides a Human Machine Interface (HMI) Fig. ~\ref{fig:test_worlds1} to select required controls for the robot. Furthermore, an audio input is also facilitated via a microphone to accept verbal instructions while giving feedback via a Speaker setup.
+\begin{figure*}[!t]
+\centering
+\begin{subfigure}[t]{0.48\textwidth}
+    \centering
+    \includegraphics[width=\linewidth,height=0.4\textheight,keepaspectratio]{images/hmi.jpg}
+    \caption{Full view of the SBY}
+    \label{fig:sby_full}
+\end{subfigure}\hfill
+\begin{subfigure}[t]{0.48\textwidth}
+    \centering
+    \includegraphics[width=\linewidth,height=0.4\textheight,keepaspectratio]{images/hmi.jpeg}
+    \caption{HMI view}
+    \label{fig:sby_hmi}
+\end{subfigure}
+\caption{Prototype of the SBY and its HMI.}
+\label{fig:test_worlds1}
+\end{figure*}
+Analogous to the human sensory system, the visual inputs are obtained from the environment via Logitech C270 HD webcam\cite{logitechC270} and Intel\textregistered{} RealSense\texttrademark{} Depth Camera D435i \cite{intel_d435i} both streaming at 30 fps simultaneously. Additionally wheel encoders are used to receive accurate rotational feedback to calculate distance travelled. 
+
+On receiving the inputs from Interface and Sensor Layer, Processing Layer consists of two major modules, i.e., Object Detection and Visual SLAM. Trash objects and Obstacles are classified by the Object Detection Module using trained Deep-Learning models. The Navigation functionality is handled by the Visual SLAM module, further comprising of Mapping and Localization sub modules. Visual Odometry sub-module is responsible for visual feature extraction and matching to estimate the robot's current position. This data is utilised by the mapping and localization submodules to create and update the occupancy map along with the robot's estimated pose. This information is further utilized by the Path Planning, Navigation and obstacle avoidance sub-modules to derive feasible and safe paths along with dynamic decision making ensuring reliable navigation. Consolidating the output of the preceding sub-modules, the Decision Module, which is considered as the ``orchestrator'' of the system, fuses the Perception and Navigation information to compute a simple high level action which is delivered to the Actuator Layer.
+
+The Actuator Layer is the final layer of the Architecture marking the transition between Intelligence and real world Action. Arduino Uno microcontroller in this layer translates the high level actions provided by the decision module into low level signals which is passed on to the appropriate actuator which physically take action on the environment such as vacuuming via vacuum cleaner, picking up trash via robotic arm. The Actuator Layer is actuator agnostic, designed for extending the robot's functionality by connecting new actuators to Arduino Uno.
+
+
+
+
+
+
+
+\subsection{Robot Physical and System Specifications}
+\begin{table}[h]
+\centering
+\caption{Physical and System Specifications of Swachh Bauddhika Yantra}\setlength{\extrarowheight}{3pt}
+\label{tab:specs}
+\begin{tabular}{ll}
+\hline
+\textbf{Specification} & \textbf{Value} \\
+\hline
+Payload capacity & 20 Kg \\
+Robotic arm Payload Capacity & 0.5 Kg \\
+Free wheel (caster) rotation & 360$^\circ$ \\
+Wheel weight & 20 kg \\
+Chassis weight & 30 kg \\
+Chassis height & 0.91 m (3 ft) \\
+Chassis width & 0.46 m (1.5 ft) \\
+Chassis length/depth & 0.61 m (2 ft) \\
+Total robot weight & 50 kg \\
+Maximum speed & 30 rpm \\
+Ruggedness  & high \\
+Number of rotation cycles & 10 \\
+Estimated runtime per charge & 2 hrs \\
+Mains power supply & 230 V, 50 Hz \\
+Battery specification & 24 V, 26 AH \\
+Locomotion actuation & 12 V DC Servo Motors \\
+Onboard compute & NVIDIA Jetson Orin Nano \\
+Local microcontroller & Arduino Uno \\
+Perception hardware & RGB Webcam $\times$ 2, 720p, 30 FPS \\
+Depth camera & Intel\textsuperscript{\textregistered} RealSense\textsuperscript{\texttrademark} Depth Camera D435i \\
+\hline
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:specs} summarizes the physical, mechanical, and power specifications of the Swachh Bauddhika Yantra chassis and drive system.
+
+% took from mechanical design (merged here)
+The robot has three levels made using a metal chassis. It is rectangular in shape, with a length of 60 cm and width of 50 cm. These levels have metal supports. Two ~15.2cm (6-inch) brushless DC (BLDC) hub motors are mounted at the rear, one on each side. A free wheel is placed at the front centre and carries around 10 kg. The hub motors are controlled using YL 12, 24 V sine-wave controllers, it is mounted below the chassis. 
+Bottom rack: This section accommodates two lead-acid batteries with a weight of 10 kg each. The robotic arm is fixed on the robot’s front end, just above the free wheel.
+Middle rack: The Jetson Orin Nano, Arduino, relay, and other components are placed in the middle. A vacuum cleaner is also placed on the middle rack with a suction pipe on its downside to suck the minute dust particles from the ground. Top rack: The HMI (Human-Machine Interface) is mounted on the top rack to supervise the robot.
+All the parts are connected with wires, which are fixed along the robot’s body. The rack arrangement makes a compact design, fixing all components without overlapping
+The robotic arm is designed with 6 degrees of freedom (6-DOF) for flexible movement. The arm body is 3D printed using polylactic acid (PLA+) material, making it lightweight and strong. It consists of a shoulder, elbow, wrist, and parallel-jaw gripper. MG996R servo motors are used for the main joints because of their higher torque, while MG90S servos are used for the lighter wrist and gripper movements. The arm is designed to handle a payload of up to 500 g for trash-picking operations.
+
+% \subsection{Mechanical Design}
+% COMMENTING IT AS IT WAS DECIDED TO MERGE WITH PREVIOUS SECTION EARLIER
+% The robot has three levels made using a metal chassis. It is rectangular in shape, with a length of 60 cm and width of 50 cm. These levels have metal supports. Two ~15.2cm (6-inch) BLDC hub motors are mounted at the rear, one on each side. Each wheel can carry around 20 kg of load. A free wheel is placed at the front centre and carries around 10 kg, so the total load capacity is 50 kg. The hub motors are controlled using YL 12, 24 V sine-wave controllers, it is mounted below the chassis. 
+% - Bottom rack: This section accommodates two lead-acid batteries with a weight of 10 kg each. The robotic arm is fixed on the robot’s front end, just above the free wheel.
+% - Middle rack: The Jetson Orin Nano, Arduino, relay, and other components are placed in the middle. A vacuum cleaner is also placed on the middle rack with a suction pipe on its downside to suck the minute dust particles from the ground. 
+% - Top rack: The HMI (Human-Machine Interface) is mounted on the top rack to supervise the robot.
+% All the parts are connected with wires, which are fixed along the robot’s body. The rack arrangement makes a compact design, fixing all components without overlapping
+% The robotic arm is designed with 6 degrees of freedom (6-DOF) for flexible movement. The arm body is 3D printed using PLA+ material, making it lightweight and strong. It consists of a base, shoulder, elbow, wrist, and parallel-jaw gripper. MG996R servo motors are used for the main joints because of their higher torque, while MG90S servos are used for the lighter wrist and gripper movements. The arm is designed to handle a payload of up to 500 g for trash-picking operations.
+
+\subsection{Hardware and Communication Setup}
+At start-up the Jetson self-checks the cameras, Arduino and wheel drivers. The Arduino isolates the Jetson from the actuators and executes simple, actuator-agnostic commands such as moving forward 30 cm, turning right 15$^{\circ}$, or switching on the vacuum. NVIDIA Jetson Orin Nano can be considered as the ``brain'' of the system. Decisions and commands originate from here and trickles down all the way till actuators. It handles the computation locally including perception, mapping and decision making process. A separate Arduino Uno microcontroller is designated for handling low level actuator control. The reason for this separation is that it detaches high level computational process from low level actions by translating the decisions into executable actions performed by actuators.
+
+Perception begins with two cameras and the depth sensor along with feedback from the Wheel-mounted encoders. Jetson consolidates the visual and rotational inputs, performs computation and sends the final decision to Arduino Uno.
+
+Prior to the end to end decision making, a communication channel is established between each of the components i.e., between sensors, Jetson, Arduino and the actuators. the visual sensors are connected to Jetson via USB-A cable streaming at 1280x720 pixels \& 30fps, while Jetson and Arduino agree on a serial link at a baud rate of 115200 bidirectionally and a consistent 8 data bits, no parity, 1 stop bit (8N1) frame format for data transfer. Communication happens via a custom newline terminated ASCII string commands (e.g., MOVE:FORWARD).For each command, there is an equivalent feedback via acknowledgment message from Arduino along with status updates periodically at a rate of 1Hz. This protocol was adopted in order to simplify debugging, while maintaining minimal overhead on the microcontroller.
+
+% \begin{figure*}[!t]
+% \centering
+% \includegraphics[width=0.9\textwidth]
+% {images/flowchart.png}
+% \caption{Flow chart.}
+% \label{fig:flochart}
+% \end{figure*}
+
+Arduino Uno parses the ASCII commands received to interpret them using a set of well defined mapping between commands and the low level actions which are then passed onto the actuators.
+
+Each actuator connects to Arduino over a specific set of pins. Arduino upon receiving the ASCII command (e.g., SPEED:8; MOVE:FORWARD), translates into equivalent pulse-width modulation (PWM) signal along with motor direction control via relay switching. Actuators collect the low level actions from the Arduino through the relay pins and performs the designated actions.
+
+The power supply for all the hardware components is provided by a 24V, 26Ah rechargeable battery, which provides roughly 2 hours of operation time rechargeable via a standard 230V, 50Hz AC mains supply.
+Each of the components require varying input power supply which is handled by usage of DC-to-DC buck converter responsible performing voltage step down action and provide a stable constant voltage supply tailored to specific component.
+
+
+
+
+\subsection{Control and Software Design}
+% HMI bagge writing, button to actuator software flow baribeku. Software tradeoffs, emergency stop, safety standards. 
+% HMI control logic: manual mode operation, command generation from GUI events (button press → MOVE:FORWARD)
+% State management: your SystemState struct fields (vacuum, arm, wiper, UV, autonomous mode, emergency stop, speed level, battery) — describe this as the software's operational state model
+% Speed control logic: the discretized 1-9 speed levels mapped to PWM values, and why discretization was chosen over continuous control
+% Safety logic: ESTOP priority handling, command rejection during emergency stop, buffer overflow protection
+% how does it stop for human arrival within few metres
+% State tracking — one line, software keeps track of moving/speed/active peripherals. Keep it short,.
+The software is designed so that manual and autonomous control inputs share a single execution path. The Control Software also includes a safety first mechanism consisting of an emergency stop sign in the HMI or the audio input ``STOP'' from the microphone, this immediately halts the execution until explicitly reset ensuring predictable behaviour. 
+The Software design was developed in a modular and extendible way, consisting of individual modules making it easier for module and integration testing while also leaving room for additional modules.
+
+% The system also tracks battery status, triggers an automatic return-to-charge routine once the charge falls below a threshold [MENTION HERE THE VALUE AND HOW WE CALCULATE CHARGE], ensuring automatic recharge with minimal human intervention.
+% Figure
+% To enable convenient remote access, a user friendly web interface is accesible when connected to same wifi network as the robot [INSERT LINK & IMAGE] 
+
+% COMMENTING THIS OUT COZ THERE IS A LOT OF REDUNDANCY, THE SAME THING IS EXPLAINED IN DETAIN IN SECTION 6: NAVIGATION AND PATH PLANNING. Added few important citations and points to SLAM AND NAVIGATION OVERVIEW (new section)
+% \subsection{Visual SLAM for Mapping and Localisation}
+% \label{sec:rtabmap}
+% For Visual SLAM Mapping and Localisation, RTAB-Map \cite{labbe2019rtab} has been chosen as it alligns most with the objectives of Swachh Boudhik Yantra.It is an open source SLAM based library which supports many different inputs such as Lidar (both 2D and 3D) , RGB-D, Stereo camera sensors while also being independent of odometry source.
+% RTAB-Map presents a graph based approach which demonstrates efficeint usage of memory by transferring the nodes from Working memory(WM) to Long term memory(LTM). It utilises bag-of-words approach for loop closure detection. Additionaly support also exists for multi-session maping via transformation between the new map and its referential map when a previously visted location is encountered. This is of particular importance as it is being run on Jetson Orin Nano, an edge device with limited resources (8GB RAM). 
+
+% Swachh Boudhik Yantra uses the Intel Realsense D430i sensor, which is a depth based sensor that is supported by RTAB-Map
+% The following paper \cite{merzlyakov2021comparison} considers a comparison between RTAB-Map, ORB-SLAM3 and OpenVSLAM. RTAB-Map performs better when compared to others on few aspects crutial to Swachh Boudhik Yantra. It is 36\% and 499\% more accurate in indoor environment dataset namely TUM RGB-D. Additionally the authors state that RTAB-Map is most deterministic in evaluations while also possessing the ability to best recover from parts where it loses its track.
+
+% Considering these factors, RTAB Map was utilized for implementing Mapping and Localization. 
+
+% \subsection{Navigation Strategy}
+% \label{sec:nav_startegy}
+% The navigation strategy of Swachh bauddhika Yantra rests on three requirements. The robot must build its own map of an unknown indoor space with no prior floor plan. It must navigate safely using camera based sensing, and all the computation must run on board
+
+% To meet these, the navigation stack is organised as a closed perception, planning and control loop on ROS2 (Jazzy), with four cooperating components.
+
+% \noindent\textit{(i) Mapping and Localisation.} RTAB-MAP fuses the RGB-D stream of the D435i camera with wheel odometry and it produces a 2D occupancy grid at a 5cm resolution and a globally corrected pose by the \texttt{map}-to-\texttt{odom} transform. Wheel odometry collects the drift, which is corrected by the visual loop.
+
+% \noindent\textit{(ii) Exploration.} In autonomous mode the robot does not know in advance the area to clean, so a frontier-based exploration module repeatedly selects the boundary between known-free and unknown space on the live occupancy grid as the next navigation goal. This phase ends when there is no reachable frontier and the map has stopped growing.
+
+% \noindent\textit{(iii) Global and local planning.} Each exploration goal is sent to the Nav2 navigation framework. The global path planner (Hybrid-A*: Smac Hybrid, Dubins motion model), computes a kinematically feasible path on the global costmap, while the local contoller is a Model Predictive Path Integral (MPPI) controller, which follows that path at 20 Hz within the robot's velocity limit and the local costmap.
+
+% \noindent\textit{(iv) Obstacle handling and recovery.} Obstacles are sensed from the depth image and converted into a planar scan, and stored in a spatio-temporal voxel layer. Obstacles that leave the camera's field of view decay after a fixed time, so they do not block the robot indefinetely. When a path cannot be computed or followed, a behaviour tree runs recovery actions in a fixed order (clear costmaps, backup, rotate in place, wait) and then replans.
+
+% The Decision module sits above the loop and is designed ot pre-empt navigation when the object detector reports trash: in this case the robot stops, triggers the robotic arm or the vacuum and then resumes the exploration.
+
+\subsection{SLAM and Navigation Overview}
+\label{sec:rtabmap}
+Real-Time Appearance Based Mapping (RTAB-Map) ~\cite{labbe2019rtab} is used for mapping and localisation. It is open source, accepts RGB-D input independently of the odometry source, and limits memory by moving nodes from working to long-term memory, which suits the 8~GB Jetson Orin Nano. In the comparison of \cite{merzlyakov2021comparison} on the TUM RGB-D dataset, RTAB-Map was more accurate indoors than ORB-SLAM3 and OpenVSLAM, the most deterministic, and the best at recovering from tracking loss. Navigation is a closed loop on ROS~2 (Jazzy): RTAB-Map builds the map, a frontier explorer selects goals, and Nav2 plans and tracks paths (Section~\ref{sec:navigation}). In the planned integration, when the detector reports trash, the Decision module pre-empts navigation, triggers the arm or vacuum, and then resumes exploration.
+
+% it restates the architecture overview. an odometry equation with L = 0.286 m, while Section VI uses 0.268 m. few important points are taken and added to HARDWARE AND EXPERIMENTAL SETUP
+% \subsection{Working Explanation of SBY}
+% Swachh Bauddhika Yantra follows a predictable sequence of steps during operation. When the Robot starts up, it initially runs tests on depth on Jetson, arduino, camera, wheel drivers and the RGB camera for initial working state.
+% Once all the tests pass, it proceeds onto the main workflow which follows a 3 stage process, i.e., Perceive, Process and Action. This helps it stay in touch with reality while also executing the processes
+% \subsubsection*{Perceive Stage} 
+% This stage consists of gathering data and information from the environment via sensors (D430i Depth camera and RGB camera) along with the wheel drivers. 
+
+% The wheel drivers give real time accurate feedback of the rotation of wheels. The distance travelled is calculated using \eqref{eq:odom}
+% \begin{equation}
+% \begin{aligned}
+% d_L &= \frac{2\pi r N_L}{\mathrm{CPR}}, \\
+% d_R &= \frac{2\pi r N_R}{\mathrm{CPR}}, \\
+% \Delta s &= \frac{d_L + d_R}{2}, \\
+% \Delta \theta &= \frac{d_R - d_L}{L}.
+% \end{aligned}
+% \label{eq:odom}
+% \end{equation}
+
+% The pose is calculated via $\Delta s$ and $\Delta\theta$. In the simulation, $r$ and $L$ are taken as 0.033m and 0.286m respectively.
+
+% \noindent
+% The Logitech C270 camera streams at 30 fps with a 1080x720p resolution for trash detection by the deep learning model.
+% \subsubsection*{Process Stage}
+% This stage consists of multiple processes running in parallel on the Jetson Orin Nano. They are described below one by one 
+
+% \begin{itemize}
+%     \item \textbf{Mapping:} responsible for mapping out the environment based on the information provided by the Depth camera. It does this by utilising RTAB Map to make a detailed Occupancy Grid which can be viewed as a 2D Map.
+%     \item \textbf{Localisation and Navigation:} Building upon the Occupancy Grid, the Localisation Module consists of 3 separate parts namely Path Planning, Navigation and Obstacle Avoidance
+%     \begin{itemize}
+%     \item \textbf{Path Planning} The Path Planning is done by Nav2 module ensuring the paths proposed are feasible
+%     %\item \textbf{Obstacle Avoidance} 
+% \end{itemize}
+% \end{itemize}
+% The Mapping module is 
+
+% \noindent
+% Building upon the Occupancy Grid, the Localisation Module consists of 3 separate parts namely Path Planning, Navigation and Obstacle Avoidance.
+
+% \noindent
+% The Path Planning is done by Nav2 module ensuring the paths proposed are feasible. 
+
+% \noindent
+% Obstacle Avoidance utilities the Dynamic Window Approach (DWA) approach ensuring minimal collisions.
+
+% \noindent
+% Object Detection module consists of Trash as well as Obstacle Detection, which takes the RGB camera stream and utilises the trained YOLO model to output Bounding boxes.
+% The outputs of all these modules are combined into one decision to be given to the Arduino Uno via the Decision module.
+% It fuses the output of all these modules in real time to make a decision in terms of action, i.e., a simple instruction
+
+% \subsubsection*{Action Stage}
+% This stage is executed via the Arduino Uno microcontroller, particularly for separation of responsibilities while also safeguarding the Jetson from potentially unsafe connections with the actuators.
+% The actions provided by the decision module to arduino uno consist of simple well defined instruction such as moving forward by 30 cm, turning right by 15 degrees or turning on the vacuum cleaner.
+
+% \noindent
+% The decisions are actuator agnostic as the decision module is designed such a way that adding a new actuator takes little effort. Currently the Actuator layer consists of actuators including but not limited to Wheels (controlled by wheel drivers), Vacuum cleaner, Mopper, UV strip, and Robotic Arm.
+
+
+
+
+\subsection{Operating Modes}
+The three operating modes are defined for the SBY. Manual mode has been implemented completely.
+\subsubsection*{Manual Mode} 
+The manual mode involves the operator to have the complete flexibility in controlling every aspect of cleaning process. The operator monitors the cleaning area continuosly through a human machine interface (HMI), this allows them to make informed decision regarding robot's movement like speed, direction of movement, cleaning area, and tasks like vacuuming, spot cleaning. Additionally, the HMI also shows warnings,alerts \& robot status which helps the operator to identify any issues or malfunctions during cleaning tasks.This mode is ideal for situations where precise control is required, such as cleaning in high-traffic or sensitive areas, or when specific conditions need to be met during cleaning.
+
+\subsubsection*{Semi-Automatic Mode} 
+Semi-Automatic mode reduces the manual need for control by introducing few autonomous features.This mode maintains some level of control while robot is performing  much of the cleaning process autonomously. The operator's role involves selecting the specific area to be cleaned, choosing the type of cleaning (e.g.,mopping,vacuuming,scrubbing), and defining the duration for the task. Once these parameters are set, the robot takes over and
+executes the cleaning operation within the defined area. This mode reduces the need for constant
+manual intervention, allowing the operator to manage multiple tasks simultaneously. Similar to
+Manual Mode, the operator can view a continuous video feed, monitor real-time analysis, and
+receive system alerts. However, with less hands-on control required, this mode provides a more
+efficient balance of human oversight and robotic autonomy, making it ideal for routine or less
+complex cleaning tasks.
+
+\subsubsection*{Automatic Mode} 
+An autonomous mode functions independently without the input from the operator. In this mode, the robot uses its mapping technology to autonomously detect the areas that require cleaning, determine the best course of action, and perform the necessary cleaning tasks. The robot’s object detection algorithms decide whether vacuuming, mopping, or another cleaning operation is needed, adjusting its approach as the environment changes. Throughout the process, the operator is still able to view the video feed and ongoing analysis, and any relevant system alerts will be displayed. However, the robot handles the entire cleaning procedure autonomously, making this mode particularly useful for large or complex areas that require continuous, hands-off operation. With minimal operator intervention, the robot can effectively and efficiently maintain cleanliness without requiring constant supervision.
+
+%should come up
+% Table~\ref{tab:specs} summarizes the physical, mechanical, and power specifications of the Swachh Bauddhika Yantra chassis and drive system.
+
+
+
+% System Architecture Overview according to Figure 1.
+% There exists three layers for the system
+% \begin{enumerate}
+%     \item Perception Layer
+%     \item Processing Layer
+%     \item Actuation Layer
+% \end{enumerate}
+
+% \subsection{Human-Machine Interface (HMI)}
+
+% The Swachh Bauddhika Yantra is equipped with a touchscreen Human-Machine Interface (HMI) 
+% that provides the operator with a continuous live video feed, real-time object detection overlays, 
+% and system status alerts. The HMI supports manual movement control (forward, backward, left, 
+% right, stop), per-servo robotic arm control (base, shoulder, gripper), preset arm sequences 
+% (Home Position, Pickup Position, Dry Waste Drop, Wet Waste Drop), vacuum on/off control, and 
+% spray/wiper control for wet cleaning. A system log console displays real-time state transitions 
+% (e.g., \textit{SEARCHING}, \textit{IDLE}) and Bluetooth connectivity status between the HMI and 
+% the onboard controller.
+
+% % \subsubsection{Perception Layer} The perception layer consists of Dual camera module. The dual camera feed is given to both the Trash detection and 
+
+% \subsection{Hardware Platform}
+% % The hardware platform combines an edge processor, microcontroller, cameras, and actuation components for mobility and waste collection.
+
+% \begin{table}[htbp]
+% \centering
+% \caption{Hardware Components of Swachh Bauddhika Yantra}
+% \label{tab:hardware}
+% \begin{tabular}{llll}
+% \toprule
+% \textbf{Component} & \textbf{Specification} & \textbf{Role} & \textbf{Cost (INR)} \\
+% \midrule
+% Raspberry Pi 5 & 8 GB RAM & Edge inference & tbf \\
+% NVIDIA RTX-A6000 & 64 GB RAM & Processing & tbf \\
+% Arduino Uno & tbf & Motor control & tbf \\
+% RGB Webcam ($\times$2) & 720p, 30 FPS & Perception & tbf \\
+% Servo Motors & 12V DC & Locomotion/Arm & tbf \\
+% \bottomrule
+% \end{tabular}
+% \end{table}
+
+% The Swachh Bauddhika Yantra was designed as a compact autonomous cleaning robot capable of performing indoor navigation, obstacle avoidance, and autonomous trash detection using an edge-computing architecture. The mechanical design emphasizes structural stability, modularity, and ease of maintenance while providing sufficient space for integrating the onboard computing hardware, sensing modules, power system, and cleaning mechanisms.
+
+% The robot chassis has a height of approximately 3 ft and an overall weight of 20 kg, providing a stable platform for autonomous operation while accommodating all mechanical and electronic subsystems. The chassis dimensions were selected to enable efficient movement through indoor environments while maintaining adequate ground clearance for cleaning operations. The locomotion system employs 12 V DC servo motors coupled with drive wheels and a caster wheel, enabling smooth differential-drive motion and precise maneuverability during navigation. The robot is powered by a 24 V, 26 Ah rechargeable battery, which provides an estimated operating time of approximately two hours under normal operating conditions. Battery charging is performed using a standard 230 V, 50 Hz AC mains supply.
+
+% Unlike conventional cleaning robots that rely on cloud-based processing, all computational tasks in the proposed system are executed locally on an NVIDIA Jetson Orin Nano, eliminating network dependency and reducing inference latency. The Jetson Orin Nano performs Visual SLAM, obstacle detection, path planning, and deep-learning-based trash detection in real time. Low-level hardware interfacing and actuator control are managed by an Arduino Uno, which communicates with the onboard computer to execute motor commands and interface with peripheral devices.
+
+% The perception subsystem consists of two RGB webcams operating at a resolution of 720p and 30 FPS. One camera is dedicated to visual perception for navigation and mapping, while the second camera is utilized for real-time trash detection. This dual-camera configuration enables simultaneous execution of localization and object detection tasks without interrupting the navigation pipeline. Since all sensing is vision-based, the proposed system avoids dependence on external infrastructure while maintaining autonomous operation in indoor environments.
+
+% The overall hardware architecture was designed with a modular approach, allowing individual components such as the computing unit, power system, sensing modules, and drive mechanisms to be serviced or upgraded independently. This design philosophy improves maintainability and provides flexibility for future integration of additional sensors, robotic manipulation hardware, or enhanced cleaning mechanisms.
+
+% \subsection{Software Stack}
+% % The software stack includes Ubuntu 22.04, ROS Humble, Python 3.10, PyTorch, OpenCV, ORB-SLAM3, and Ultralytics-based detection modules. ROS serves as the middleware for communication among sensing, localization, detection, and actuation nodes.
+
+% \subsection*{System Requirements}
+
+% \begin{table}[h]
+% \centering
+% \begin{tabular}{ll}
+% \hline
+% \textbf{Component} & \textbf{Requirement} \\
+% \hline
+% OS & Ubuntu 20.04 / 22.04 LTS (recommended) or Windows 10/11 \\
+% Python & $\geq$ 3.10 \\
+% CUDA Toolkit & 12.1 (cu121) \\
+% cuDNN & $\geq$ 8.9 \\
+% GPU & NVIDIA GPU with $\geq$ 8 GB VRAM (trained on RTX A6000, 48 GB) \\
+% Disk & $\geq$ 50 GB free  \\
+% RAM & $\geq$ 16 GB \\
+% \hline
+% \end{tabular}
+% \caption{System requirements for the training pipeline}
+% \label{tab:system_requirements}
+% \end{table}
+
+
+% \subsection*{Software Dependencies}
+
+% \begin{table}[h]
+% \centering
+% \begin{tabular}{lll}
+% \hline
+% \textbf{Package} & \textbf{Version} & \textbf{Purpose} \\
+% \hline
+% torch & $\geq$ 2.1.0 & Core deep learning framework (CUDA 12.1 build) \\
+% torchvision & $\geq$ 0.16.0 & Image transforms and pre-trained model utilities \\
+% ultralytics & $\geq$ 8.3.0 & Training interface for YOLOv8 and YOLOv11n-seg \\
+% rfdetr & $\geq$ 1.2.0 & RF-DETR training with DINOv2 backbone and EMA checkpointing \\
+% supervision & $\geq$ 0.24.0 & Detection output handling for RF-DETR inference \\
+% albumentations & $\geq$ 1.4.0 & Image augmentation pipeline \\
+% pycocotools & $\geq$ 2.0.7 & COCO annotation parsing, RLE mask decoding, mAP evaluation \\
+% opencv-python & $\geq$ 4.8.0 & Image loading, resizing, and color space conversion \\
+% Pillow & $\geq$ 9.0 & Image loading for model inference \\
+% onnx & $\geq$ 1.14.0 & Exporting trained models to ONNX format \\
+% onnxruntime-gpu & $\geq$ 1.17.0 & GPU-accelerated inference benchmarking for deployment \\
+% \hline
+% \end{tabular}
+% \caption{Software dependencies used in the training and deployment pipeline}
+% \label{tab:software_dependencies}
+% \end{table}
+
+% The experimental pipeline was implemented in Python 3.10 with PyTorch 2.1.0 as the core deep learning framework, running on CUDA 12.1 for GPU accelerated training. YOLOv8 and YOLOv11n-seg were trained using the Ultralytics 8.3.0 library, which provides a simple and unified training interface for both models. RF-DETR was trained using the rfdetr 1.2.0 library, with detection outputs managed through the supervision 0.24.0 API.
+% For dataset preparation, images were augmented using Albumentations 1.4.0, and COCO format annotations were handled using pycocotools 2.0.7. Image loading and preprocessing was done using OpenCV 4.8.0 and Pillow 9.0. Model performance was evaluated using the standard COCO metrics, mAP@0.50 and mAP@0.50:0.95, computed consistently across all models using pycocotools to ensure fair comparison. Trained models were exported to ONNX format using onnx 1.14.0 and benchmarked for deployment using onnxruntime-gpu 1.17.0.
+
+
+\section{Trash Detection Module}
+\label{sec:trash_detection}
+
+\subsection{Dataset Description}
+Although existing datasets such as TrashNet and ImageNet were available, they contained classes that did not match the specific class labels required for the work. There were uncertainties, such as mismatches in the environment and surroundings, which limited their applicability. Another problem encountered was that the images in the existing datasets were captured from the human eye level. Furthermore, these public datasets were created using high-quality cameras, which did not align with the experimental setup that uses a Red Green Blue (RGB) camera.
+
+The initial dataset was created in a laboratory environment under controlled conditions. The trash objects were captured against diverse backgrounds, in different orientations, at varying speeds, and under different lighting conditions to reflect real-world environments and minimize potential bias. Sample images of each class are shown in Fig.~\ref{fig:dataset_samples}. An RGB camera with a resolution of $1280 \times 720$~pixels was mounted on the robot at a low height with a downward inclination of 30 degrees to capture the trash objects. When the camera was mounted on top of the robot, the trash objects were not clearly visible for accurate detection. Therefore, the decision to use a 30-degree inclined camera angle was intentional to increase the area of visibility, enable more accurate detection of trash objects, and ensure that the robotic arm could reach the trash object for pickup.
+
+The process took 10 man-hours, with the efforts of two people, to collect the trash and create the initial dataset of 877 images. A key design choice in this work was to define object classes according to the cleaning action they require rather than purely based on the object identity. This approach allows the output of the object detection model to be used directly by the Decision Fusion Module (DFM) (Table~\ref{tab:decision_logic}). The six classes and their image counts are presented in Table~\ref{tab:raw_dataset_distribution}.
+
+\subsection{Dataset Accessibility}
+The custom dataset is available at \url{https://github.com/manaswi-siripurapu/swachh-bauddhika-yantra}. Researchers may request access to the full dataset by contacting the corresponding author.
+
+\begin{table}[!t]
+\centering
+\footnotesize\setlength{\tabcolsep}{3pt}
+\caption{Class-wise image distribution of the six waste classes of the raw dataset.}\setlength{\extrarowheight}{3pt}
+\label{tab:raw_dataset_distribution}
+\begin{tabular}{|c|c|}
+\hline
+\textbf{Class Name} & \textbf{Number of Images} \\
+\hline
+Aluminium Foil & 175 \\
+\hline
+Bottle & 210 \\
+\hline
+Cement Dust & 68 \\
+\hline
+Paper & 210 \\
+\hline
+Wooden Dust & 63 \\
+\hline
+Wrapper & 151 \\
+\hline
+\textbf{Total} & \textbf{877} \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Instance Segmentation}
+During the annotation process, an instance segmentation approach was adopted instead of directly drawing bounding boxes. Unlike conventional object detection, which represents each object using an approximate rectangular bounding box, instance segmentation identifies the precise pixel-level boundaries of every object instance. This enables the annotation to closely follow the actual shape and extent of irregularly shaped objects such as aluminium foil, paper, wrappers, and dust, which cannot be accurately represented using simple rectangular boxes.
+
+
+After image acquisition, all images were annotated using the Roboflow annotation platform \cite{roboflow}. The Smart Select tool was used to assist in accurately outlining object boundaries during the annotation process. However, no auto-labeling or pre-trained annotation models were employed, and every object instance was manually annotated by two annotators. Bounding boxes were assigned to each annotated object, including the six waste categories as well as the floor and obstacle classes. All annotations were manually verified to ensure consistency in class labels and annotation quality. The annotated dataset was exported in the YOLO format for training the YOLO models and in the  Common Objects in Context (COCO) format for training the RF-DETR model. 
+
+The final annotated dataset comprises 877 images containing a total of 6,349 bounding box annotations across the eight object classes that map onto the six functional classes described in Table~\ref{tab:raw_dataset_distribution}. The per-category annotation counts are as follows: obstacle - 3,517, floor - 917, paper - 691, bottle - 351, wrapper - 283, aluminium\_foil - 259, cement\_dust - 169, and wooden\_dust - 162. A class imbalance exists between obstacle class and the dust class with obstacle annotations exceeding wooden\_dust by a factor of approximately 21.7. This imbalance reflects the real-world distribution of objects seen during robot navigation and was addressed through augmentation of under represented classes during training. The dataset was split into training, validation and test following a 70:20:10 ratio resulting in 611 training images, 175 validation images and 91 test images. Augmentation was performed only after the dataset split, ensuring a clear separation between training and evaluation data and preventing overlap between original and augmented samples.
+
+
+\subsection{Augmentation}
+Augmentation was applied to the training split only, using Albumentations with horizontal and vertical flips, rotation (±15°), random cropping, perspective warping, brightness and contrast rotation ($\pm 15^{\circ}$) / changes ($\pm 30\%$) and 5×5 motion blur. Each operation was applied with probability 0.5 and could be combined, to mimic camera orientation, lighting and motion blur. Validation and test sets were not augmented.
+% CONDENSED VERSION IS PASTED ABOVE
+% To improve model generalization  under real-world conditions, data augmentation was applied only to the training set. This process is used to expand the original training dataset by three times, which gave 2619 augmented images. The augmentation techniques were used to simulate the variations that the cleaning robot may face during deployment such as changes in camera orientation, fluctuations in lighting conditions and image distortion caused by the movement.
+% Several augmentation operations were applied randomly to the training images. Horizontal and vertical flipping, random rotations within ±15° and random cropping helped the model learn to detect partially visible objects near the boundaries of the camera frame. Brightness and contrast adjustments of up to ±30\% were introduced to account for differences between normal and low light environments. In addition,motion blur using a 5×5 kernel was applied to replicate image degradation caused by robot movement.
+
+% Each augmentation was applied with a probability of 50\%, and multiple transformations could be combined on the same image to generate diverse training samples. No augmentation was performed on the validation or test sets, ensuring that performance evaluation was conducted on unmodified images representative of actual deployment scenarios.
+
+\subsection{Hyperparameter Tuning}
+The internal weights of a deep learning model are continuously learned and updated via backpropagation during training, whereas hyperparameters are the choices that must be explicitly defined before a single image is processed. These external variables, such as the learning rate, weight decay, batch size, and input resolution (Table~\ref{tab:hyperparameters}), influence how the model learns, how quickly it converges, and its overall performance. The relationship between hyperparameters and model accuracy is very complex. Since every dataset is different and the training process is unpredictable, there is no single formula that can determine the best hyperparameter values beforehand. Instead, they are usually found through experimentation or optimization methods such as Grid Search, Random Search, Bayesian Optimization, or other algorithms. Different combinations must be tested to identify the configuration that yields the highest model accuracy.
+
+
+
+\begin{table}[!t]
+\centering
+\caption{Hyperparameters considered during model optimization and their roles.}\footnotesize\setlength{\extrarowheight}{3pt}
+
+\begin{tabular}{|m{0.24\columnwidth}|m{0.66\columnwidth}|}
+\hline
+\textbf{Hyperparameter} & \textbf{What it Controls} \\ \hline
+Learning Rate ($lr$) & Size of each gradient-descent step during optimization. \\ \hline
+Batch Size & Number of images processed before each gradient update. \\ \hline
+Input Resolution & Pixel dimensions of the input images fed to the model. \\ \hline
+Gradient Accumulation & Number of micro-batches processed before performing a weight update (effective batch size multiplier). \\ \hline
+Weight Decay & L2 regularization strength that penalizes large weights to reduce overfitting. \\ \hline
+\end{tabular}
+\label{tab:hyperparameters}
+\end{table}
+
+Grid Search is a hyperparameter optimization technique that evaluates all possible combinations of the given parameter values. However, it is a poor choice for this specific pipeline. Random Search is a hyperparameter optimization technique that samples values from predefined distributions instead of testing all possible combinations. Bayesian Optimization takes a smarter approach by treating hyperparameter tuning as a mathematical optimization problem and learning from past results to decide which configuration to evaluate next.
+
+The reason why Random Search was implemented is that the search space has five dimensions: \textit{learning rate} ($lr$) and \textit{weight decay} are continuous hyperparameters, \textit{batch size} and \textit{input resolution} each have three possible options, and \textit{gradient accumulation} has two possible options. A full Grid Search would therefore require $5\ (\textit{lr}) \times 3\ (\textit{batch}) \times 3\ (\textit{resolution}) \times 2\ (\textit{gradient accumulation}) \times 5\ (\textit{weight decay}) = 450$ trials. Considering that each trial takes approximately 20 minutes, Grid Search would require over six days of continuous GPU time solely for hyperparameter optimization. Furthermore, Grid Search spends a significant amount of time exploring less important dimensions of the search space, whereas Random Search evaluates a unique combination in every trial, providing a much richer exploration of the most influential hyperparameters.
+
+%dataset statistics and split
+
+% %about augmentation
+
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[b]{0.3\columnwidth}
+        \centering
+        \includegraphics[width=\linewidth]{images/bottle_data_sample.png}
+        \caption{Bottle}
+    \end{subfigure}
+    \begin{subfigure}[b]{0.3\columnwidth}
+        \centering
+        \includegraphics[width=\linewidth]
+        {images/paper_data_sample.png}
+        \caption{Paper}
+    \end{subfigure}
+    \begin{subfigure}[b]{0.3\columnwidth}
+        \centering
+        \includegraphics[width=\linewidth]{images/wrapper_data_sample.png}
+        \caption{Plastic Wrapper}
+    \end{subfigure}
+    \begin{subfigure}[b]{0.3\columnwidth}
+        \centering
+        \includegraphics[width=\linewidth]	{images/aluminium_foil_data_sample.png}
+        \caption{Aluminium Foil}
+    \end{subfigure}
+    \begin{subfigure}[b]{0.3\columnwidth}
+        \centering
+        \includegraphics[width=\linewidth]{images/cement_dust_data_sample.png}
+        \caption{Cement Dust}
+    \end{subfigure}
+    \begin{subfigure}[b]{0.3\columnwidth}
+        \centering
+        \includegraphics[width=\linewidth]{images/wooden_dust_data_sample.png}
+        \caption{Wooden Dust}
+    \end{subfigure}
+    \caption{Sample training images for each class.}
+    \label{fig:dataset_samples}
+\end{figure}
+
+\subsection{Model Architecture}
+
+Object detection is the foundational computer vision task that enables the robotic vacuum cleaner to perceive, classify, and act upon objects in its environment. Unlike simple image classification, which assigns a single label to an entire image, object detection simultaneously localises every object (via a bounding box) and assigns it a semantic class. Two families of detectors dominate modern real-time deployments: the RF-DETR and the You Only Look Once (YOLO) family \cite{yolo_review}. Both belong to the single-stage detection paradigm, they predict class probabilities and bounding-box offsets in a single forward pass, without a separate region-proposal stage. This property is critical for robotic applications where inference latency directly constrains navigation speed, and prior benchmarking on embedded hardware confirms that both families are capable of real-time throughput on modern edge accelerators.
+
+\subsubsection{You Only Look Once (YOLO)}
+
+\paragraph{Architecture Overview.}
+YOLO \cite{yolo_review} frames object detection as a single regression problem from raw pixels directly to bounding-box coordinates and class probabilities. Over successive versions, the YOLO family has evolved substantially in backbone design, loss formulation, and training strategy, while maintaining its signature single-pass inference speed \cite{yolo_review}.
+
+In this robotic system, YOLOv8s (the small variant of Ultralytics YOLOv8) is deployed for per-frame detection of debris, obstacles, hazards, and humans, while a companion YOLOv8-seg model handles segmentation-based floor-state inference every fifth frame. YOLOv8's architecture has three principal components. The \emph{backbone} is a Cross Stage Partial (CSP)-Darknet enriched with C2f (Cross-Stage Feature Fusion) modules, which improve gradient flow by splitting feature maps into parallel branches. The \emph{neck} is a Path Aggregation Network and Feature Pyramid Network (PAN+FPN) + Feature Pyramid Network that fuses features across three scales (P3, P4, P5). The \emph{head} is a decoupled detection head that separates classification and regression into two parallel branches, accelerating convergence and improving accuracy compared to earlier coupled-head designs.
+
+A key distinction in YOLOv8 is its \emph{anchor-free} detection strategy: the model directly regresses the distances from a predicted box centre to all four box edges, simplifying the training pipeline and removing the need for anchor hyperparameter tuning entirely.
+
+\paragraph{Mathematical Description.}
+Let the input image be resized to $I \in \mathbb{R}^{H \times W \times 3}$ (typically $640 \times 640$). The network produces predictions at three stride levels $s \in \{8, 16, 32\}$, yielding feature grids of size $\frac{H}{s} \times \frac{W}{s}$. At each grid location $(i, j)$, the model predicts:
+\begin{equation}
+\mathbf{p}_{ij} = \left[\underbrace{t_x,\, t_y,\, t_w,\, t_h}_{\text{box regression}},\; \underbrace{o}_{\text{objectness}},\; \underbrace{p_1, p_2, \ldots, p_C}_{\text{class scores}}\right]
+\end{equation}
+Box edges are predicted via Distribution Focal Loss (DFL), which models each edge location as a discrete probability distribution over integer values $\{0, 1, \ldots, R\}$:
+\begin{equation}
+\hat{d} = \sum_{k=0}^{R} k \cdot \text{softmax}(\mathbf{z})_k
+\end{equation}
+where $\mathbf{z} \in \mathbb{R}^{R+1}$ is the raw regression output and $\hat{d}$ is the predicted distance from the grid-cell centre to one box edge. The final box coordinates are:
+\begin{equation}
+x_1 = (c_x - \hat{d}_\text{left}) \cdot s, \quad x_2 = (c_x + \hat{d}_\text{right}) \cdot s
+\end{equation}
+and analogously for $y_1, y_2$. The overall YOLOv8s architecture used in this work is shown in Fig.~\ref{fig:yolo_arch}.
+
+\begin{figure*}[!t]
+  \centering  \includegraphics[width=\textwidth,height=0.45\textheight,keepaspectratio]{images/yolov8s archi 2.0.png}
+  \caption{YOLOv8 network architecture}
+  \label{fig:yolo_arch}
+\end{figure*}
+
+\subsubsection{RF-DETR}
+\paragraph{Architecture Overview:}
+Roboflow DEtection TRansformer (RF-DETR)~\cite{robinson2026rfdetr} is a real-time detection transformer developed by Roboflow that reformulates object detection as a direct set-prediction problem, removing hand-designed components such as anchor generation and non-maximum suppression (NMS) that YOLO-family detectors depend on. Building on the original DEtection TRansformer (DETR) formulation \cite{carion2020detr} and incorporating deformable attention for faster convergence \cite{zhu2020deformable}, RF-DETR combines a pretrained DINOv2 \cite{oquab2023dinov2} vision transformer backbone with a lightweight multi-scale deformable decoder, allowing it to inherit strong general-purpose visual features while remaining fast enough for real-time inference. The model family is produced via weight-sharing neural architecture search (NAS) over the backbone-decoder configuration space, giving a range of accuracy-latency operating points from Nano to 2X-Large \cite{robinson2026rfdetr}. Unlike YOLOv8's convolutional backbone-neck-head pipeline, RF-DETR's self-attention layers model long-range spatial dependencies directly across the image, which is useful for distinguishing visually similar debris classes (e.g., wooden dust versus cement dust) using global context rather than local texture alone. On the COCO benchmark, RF-DETR was reported as the first real-time model (25+ FPS on an NVIDIA T4) to exceed 60 mAP, and it is Pareto-optimal relative to YOLO-family models at comparable latencies \cite{robinson2026rfdetr}.
+
+The model predicts a fixed number of $N$ object queries per image, each producing a class label and bounding box. A bipartite matching step during training assigns each ground-truth object to exactly one predicted query using the Hungarian algorithm, removing the need for anchor boxes, Intersection over Union (IoU) thresholds, or NMS post-processing at inference time \cite{carion2020detr}. Because RF-DETR retains this end-to-end formulation while adopting a NAS-optimised, latency-aware backbone configuration, it targets the same real-time operating point as YOLOv8s and YOLOv11n, making it suitable for comparison in this work despite of its different architecture.
+
+\paragraph{Mathematical Description.}
+Given an input image $I \in \mathbb{R}^{H \times W \times 3}$, the DINOv2 backbone produces a spatial feature map which is projected across multiple scales and passed through the deformable-attention decoder together with $N$ learned object queries $\{q_1, \ldots, q_N\}$. Each query is decoded into a prediction
+\begin{equation}
+\hat{y}_i = \left(\hat{c}_i,\ \hat{b}_i\right), \quad \hat{c}_i \in \mathbb{R}^{C+1},\ \hat{b}_i \in [0,1]^4
+\end{equation}
+where $\hat{c}_i$ is the class probability distribution (including a ``no object'' class) and $\hat{b}_i$ is the normalised box in $(c_x, c_y, w, h)$ form.
+
+Given the set of ground-truth objects $\{y_j\}_{j=1}^{M}$ (padded with ``no object'' to size $N$), training finds the optimal bipartite assignment $\hat{\sigma}$ that minimises a matching cost via the Hungarian algorithm \cite{carion2020detr}:
+\begin{equation}
+\hat{\sigma} = \arg\min_{\sigma \in \mathfrak{S}_N} \sum_{i=1}^{N} \mathcal{L}_{\text{match}}\left(y_i,\ \hat{y}_{\sigma(i)}\right)
+\end{equation}
+where $\mathcal{L}_{\text{match}}$ combines a classification cost with a box cost. Once matched, the model is optimised end-to-end with a loss:
+\begin{equation}
+\mathcal{L} = \lambda_{\text{cls}} \mathcal{L}_{\text{cls}} + \lambda_{\text{L1}} \|b_i - \hat{b}_{\hat{\sigma}(i)}\|_1 + \lambda_{\text{giou}} \mathcal{L}_{\text{giou}}\left(b_i, \hat{b}_{\hat{\sigma}(i)}\right)
+\end{equation}
+where $\mathcal{L}_{\text{giou}}$ is the generalised IoU loss, penalising box misalignment even when predicted and ground-truth boxes do not overlap \cite{carion2020detr}. RF-DETR additionally applies auxiliary losses on intermediate decoder layers and a Group DETR-style parallel-decoder training scheme to accelerate convergence \cite{robinson2026rfdetr}. Because each query is matched to at most one object, duplicate detections are suppressed implicitly by the training objective rather than by a separate NMS step at inference. The overall RF-DETR architecture used in this work is shown in Fig.~\ref{fig:rfdetr_arch}. 
+
+\begin{figure*}[!t]
+  \centering
+  \includegraphics[width=\textwidth,height=0.45\textheight,keepaspectratio]{images/rfdetr archi 2.0.png}
+  \caption{RF-DETR network architecture.}
+  \label{fig:rfdetr_arch}
+\end{figure*}
+
+% \subsection{Dual-Model Detection for research and comparision}
+% A dual-model strategy is used to compare two detectors and select the more confident prediction for each frame.
+
+% \begin{algorithm}
+% \caption{Dual-Model Detection Comparison}
+% \label{alg:fusion}
+% \begin{algorithmic}[1]
+% \Require Frame $F$, confidence threshold $\tau = 0.5$
+% \State $D_Y \leftarrow \text{YOLOv11n}(F)$
+% \State $D_S \leftarrow \text{SSDNet or R-DETR}(F)$
+% \If{$\mathrm{conf}(D_Y) \geq \mathrm{conf}(D_S)$}
+%     \State $D^* \leftarrow D_Y$
+% \Else
+%     \State $D^* \leftarrow D_S$
+% \EndIf
+% \State \Return $D^*.\text{class}, D^*.\text{bbox}$
+% \end{algorithmic}
+% \end{algorithm}
+
+% \subsection{Training Configuration}
+
+\section{Navigation and Path Planning}
+\label{sec:navigation}
+The navigation system combines mapping, exploration and path planning to navigate unknown environments. RTAB-Map provides the map and robot pose, the frontier explorer selects the next goal, and Nav2 plans and executes the path while avoiding obstacles.
+
+\subsection{Visual SLAM for Mapping and Localisation}
+\label{sec:vslam}
+
+The choice of RTAB-Map is justified in Section~\ref{sec:rtabmap}. This section describes how it is configured (Table~\ref{tab:rtabmap_params}) and what it provides to the rest of the navigation stack. RTAB-Map takes the colour and depth images of the D435i together with wheel odometry, and outputs a 2D occupancy grid and the \texttt{map}-to-\texttt{odom} transform. The Nav2 costmaps use the grid as their static layer, and the frontier explorer reads it to find unexplored space.
+
+% \paragraph{Inputs.}
+RTAB-Map operates in RGB-D mode with wheel odometry, which converts the wheel angular velocities into the base velocities as
+\begin{equation}
+v = \frac{r\,(\omega_L + \omega_R)}{2}, \qquad \omega = \frac{r\,(\omega_R - \omega_L)}{L},
+\end{equation}
+where $v$ and $\omega$ are the linear and angular velocities of the robot base, $\omega_L$ and $\omega_R$ are the angular velocities of the left and right wheels, $r$ is the wheel radius, and $L$ is the distance between the wheels. The experiments reported in this paper use the wheel parameters of the simulated robot.
+
+% \paragraph{Role of vision.}
+Images are used for loop-closure detection and proximity-based node linking rather than frame-to-frame motion estimation. Since the robot operates on a flat floor, pose registration was restricted to three DOF
+
+% \paragraph{Graph construction and loop closure.}
+% A new pose-graph node is created whenever the robot moves 0.10~m or rotates 0.087~rad (approximately $5^{\circ}$), while the map is updated at 1~Hz. For each image, up to 500 GFTT keypoints are detected and described using BRIEF, with features restricted to a depth range of 0.1 - 4.0~m. The resulting descriptors are used for appearance-based loop-closure detection through a bag-of-words model. A loop closure is accepted when its likelihood exceeds 0.11 and geometric verification identifies at least 10 inliers. Spatial proximity detection is also enabled to establish links between nearby nodes,including those with different visual appearances.
+
+Node creation, map update rate, keypoint limits, and loop-closure thresholds are listed in Table~\ref{tab:rtabmap_params}. The descriptors feed a bag of words model which is then used for an appearance based loop closure detection.
+
+% \paragraph{Memory.}
+The short-term memory is limited to the 10 most recent nodes, which are excluded from loop-closure matching. Since no time or memory limits are configured, nodes are not transferred to  long-term memory during the experiments. Consequently, RTAB-Map's long-term memory management is not evaluated in this experiment.
+
+% \paragraph{Occupancy grid.}
+RTAB-Map generates a 2D occupancy grid from the depth point cloud using a cell size. Points up to 0.03~m above the floor are classified as ground, while points between 0.03~m and 0.30~m are classified as obstacles. These height thresholds are selected for the simulated base, which measures 0.30~$\times$~0.25~m, and may require adjustment for the physical robot.
+\begin{table}[htbp]
+\centering
+\footnotesize\setlength{\tabcolsep}{3pt}
+\caption{RTAB-Map parameters used in the experiments}
+\label{tab:rtabmap_params}
+\begin{tabular}{@{}p{0.38\columnwidth}p{0.24\columnwidth}p{0.30\columnwidth}@{}}
+\toprule
+\textbf{Parameter} & \textbf{Value} & \textbf{Default or tuned} \\
+\midrule
+Synchronisation window & 0.05~s & tuned \\
+Registration & 3 DoF ($x$, $y$, yaw) & tuned \\
+Node linear update & 0.10~m & default \\
+Node angular update & 0.087~rad & tuned (default 0.1) \\
+Map update rate & 1~Hz & default \\
+Maximum keypoints & 500 & default \\
+Keypoint depth range & 0.1 to 4.0~m & tuned \\
+Loop-closure threshold & 0.11 & default \\
+Minimum inliers & 10 & tuned (default 20) \\
+Proximity detection by space & on, graph depth 0 & depth tuned (default 50) \\
+Short-term memory size & 10 nodes & default \\
+Rehearsal similarity & 0.45 & tuned (default 0.6) \\
+Time and memory limits & none & default \\
+Grid cell size & 0.05~m & default \\
+Grid ray tracing & on & tuned \\
+Grid mode & 2D & tuned \\
+Ground height limit & 0.03~m & tuned \\
+Maximum obstacle height & 0.30~m & tuned \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% \paragraph{Odometry noise in simulation.}
+In the exploration campaign, a noise node perturbs the wheel odometry. A persistent scale error is drawn once per episode ($\sigma = 2\%$ for linear and $3\%$ for angular motion), and a heading random walk is added, with coefficients of 0.02 per square root of metre travelled and 0.03 per square root of radian turned. The navigation, avoidance and responsiveness campaigns ran without injected noise.
+
+% \paragraph{Limitations.}
+% The simulated camera does not model sensor noise and has a depth field of view of $69.4^{\circ}$, compared with approximately $87^{\circ}$ for the physical D435i. The distinct wall textures in the simulation may also facilitate loop-closure detection compared with real corridors with plain walls. Since RTAB-Map has not been evaluated on the Jetson Orin Nano or the physical robot, its runtime and memory requirements on the target hardware remain unverified.
+The difference between the simulated and the physical setup is in Section~\ref{sec:sys_perf}. 
+
+\subsection{Path Planning}
+\label{sec:planning}
+Path planning in Swachh Bauddhika Yantra is handled at two levels. The frontier-based explorer selects the next exploration goal,while Nav2 computes and executes a path to that goal. Both rely on the occupancy grid and pose estimate provided by RTAB-Map.
+
+% \paragraph{Goal selection.}
+The robot uses a custom frontier-based explorer to select its next exploration goal (Algorithm~\ref{alg:frontier}) . The explorer processes the latest occupancy grid at 2~Hz and identifies frontier cells as free cells with at least one unknown 4-connected neighbour. Adjacent frontier cells are grouped into clusters using flood fill within a 0.5~m window. Clusters containing fewer than five cells are discarded, along with frontiers shorter than 0.5~m or those associated with recent navigation failures. The remaining candidates are ranked using the following utility function:
+\begin{equation}
+S = 1.0\,\ln(1 + n) \;-\; 1.5\,d \;-\; 0.8\,p,
+\end{equation}
+where $n$ is the number of cells in the frontier, used as a proxy for the information a visit would reveal, and $d$ is the straight-line distance in metres from the robot to the frontier centroid. The last term, $p = \max(0,\,1 - d_{\mathrm{obs}}/0.5)$, penalises centroids near obstacles, where $d_{\mathrm{obs}}$ is the distance to the nearest occupied cell within 0.5~m of the centroid ($p = 0$ if there is none).
+
+Since frontier centroids lie in unknown space, they cannot be used directly as navigation goals. Each centroid is instead mapped to the nearest known free cell, with limited search radius (Table~\ref{tab:planning_params}). Frontiers are blacklisted if no valid cell is found or if the resulting goal is within 0.30~m of the robot. The remaining goals are sent to Nav2.
+
+While a goal is active, the explorer monitors navigation progress and cancels the goal if Nav2 reports a failure, the execution time exceeds 30~s, or the robot moves less than 0.30~m within 15~s. In-place rotation is also counted as motion. The corresponding frontier is then blacklisted for 60~s. Following successful navigation, a frontier is also blacklisted if it remains within 0.5~m of the reached goal and fewer than 10 new free cells have been discovered. This prevents repeated visits to regions that yield little new information.
+
+If no map is available within 3~s of start-up, the robot rotates at 0.4~rad/s for 8~s to build an initial map. Exploration terminates when five consecutive detection cycles find no frontier, the number of free cells increases by fewer than 10 over 15~s, and the robot is stationary, with a linear speed below 0.02~m/s. Algorithm~\ref{alg:frontier} summarises the exploration loop.
+
+\begin{algorithm}[htbp]
+\caption{Frontier exploration loop.}
+\label{alg:frontier}
+\begin{algorithmic}[1]
+\Require occupancy grid $M$ (updated by RTAB-Map); blacklist $B \leftarrow \emptyset$ of frontier centroids, each expiring 60~s after its last failure; empty-cycle counter $c \leftarrow 0$
+\If{no map exists 3~s after start}
+    \State rotate at 0.4~rad/s for 8~s
+\EndIf
+\While{exploration is not complete}
+    \State $F \leftarrow$ frontier clusters of $M$ at 2~Hz (flood fill, 0.5~m window, at least 5 cells)
+    \State $F \leftarrow \{f \in F : \mathrm{length}(f) \geq 0.5~\mathrm{m}$ and the centroid of $f$ is more than 0.5~m from every entry of $B\}$
+    \If{$F = \emptyset$}
+        \State $c \leftarrow c + 1$
+        \If{$c \geq 5$, free cells grew by fewer than 10 over 15~s, and linear speed is below 0.02~m/s}
+            \State stop: exploration complete
+        \EndIf
+    \Else
+        \State $c \leftarrow 0$
+        \State $f^{*} \leftarrow \arg\max_{f \in F} S(f)$
+        \State $g \leftarrow$ nearest free cell to the centroid of $f^{*}$ with clearance $\geq 0.30$~m, within 1.5~m
+        \If{$g$ does not exist or lies within 0.30~m of the robot}
+            \State add the centroid of $f^{*}$ to $B$
+        \Else
+            \State send $g$ to Nav2 and monitor it
+            \If{Nav2 fails, 30~s elapse, or for 15~s the robot moves less than 0.30~m and does not rotate}
+                \State cancel the goal and add the centroid of $f^{*}$ to $B$
+            \ElsIf{the goal is reached but a frontier within 0.5~m of it persists with fewer than 10 new free cells}
+                \State add that frontier's centroid to $B$
+            \EndIf
+        \EndIf
+    \EndIf
+\EndWhile
+\end{algorithmic}
+\end{algorithm}
+
+% \paragraph{Global planning.}
+Nav2 uses the Smac Hybrid-A* planner to compute a path to each selected goal. The planner searches over position and heading using the Dubins motion model, producing forward-only paths subject to a minimum turning radius of 0.25~m. The goal tolerance is set to 0.30~m, unknown space is treated as traversable to support exploration, and the planning time is limited to 5~s.
+
+The global costmap uses the SLAM map at a resolution of 5~cm. It combines the RTAB-Map occupancy grid with a spatio-temporal voxel layer fed by the depth camera and an inflation layer with a radius of 0.28~m and a cost scaling factor of 5. Collision checking uses the robot's rectangular footprint of $0.30 \times 0.25$~m.
+
+% \paragraph{Local control.}
+The planned path is followed by a Model Predictive Path Integral (MPPI) controller running at 20~Hz on a $4 \times 4$~m rolling local costmap, which is updated at 5~Hz and uses the same three layers. In each cycle the controller samples 2000 velocity sequences over a 2.8~s horizon (56 steps of 0.05~s) with a differential-drive model, and ranks them with eight cost terms: constraint, footprint collision cost, goal, goal angle, path alignment, path following, path angle and a preference for forward motion. Forward speed is limited to 0.30~m/s and angular speed to 1.0~rad/s, and a velocity smoother bounds the acceleration at 2.5~m/s$^2$ and 3.2~rad/s$^2$. A goal counts as reached within 0.30~m and 0.5~rad. Table~\ref{tab:planning_params} lists the settings and marks those changed from the Nav2 defaults.
+
+\begin{table*}[!t]
+\centering
+\footnotesize\setlength{\tabcolsep}{3pt}
+\caption{Explorer and Nav2 configuration parameters}
+\label{tab:planning_params}
+\begin{tabular}{llll}
+\toprule
+\textbf{Component} & \textbf{Parameter} & \textbf{Value} & \textbf{Note} \\
+\midrule
+Explorer & Detection rate & 2~Hz & custom code \\
+Explorer & Cluster window, minimum cluster & 0.5~m, 5 cells & custom code \\
+Explorer & Minimum frontier length & 0.5~m & custom code \\
+Explorer & Snap clearance, maximum snap & 0.30~m, 1.5~m & custom code \\
+Explorer & Goal timeout, no-progress rule & 30~s, 0.30~m in 15~s & custom code \\
+Explorer & Blacklist duration & 60~s & custom code \\
+Explorer & Score weights (gain, distance, obstacle) & 1.0, 1.5, 0.8 & custom code \\
+\midrule
+Smac Hybrid-A* & Motion model & Dubins & default \\
+Smac Hybrid-A* & Minimum turning radius & 0.25~m & tuned (default 0.4) \\
+Smac Hybrid-A* & Goal tolerance & 0.30~m & tuned (default 0.25) \\
+Smac Hybrid-A* & Retrospective penalty & 0.025 & tuned (default 0.015) \\
+Smac Hybrid-A* & Planning time cap, unknown space & 5~s, allowed & default \\
+\midrule
+Global costmap & Resolution, update rate & 5~cm, 1~Hz & as configured \\
+Global costmap & Inflation radius, scaling factor & 0.28~m, 5.0 & as configured \\
+Local costmap & Size, update rate & $4 \times 4$~m rolling, 5~Hz & as configured \\
+\midrule
+MPPI & Controller rate & 20~Hz & as configured \\
+MPPI & Samples, horizon & 2000, $56 \times 0.05$~s & sample configuration \\
+MPPI & Speed limits & 0 to 0.30~m/s, 1.0~rad/s & as configured \\
+MPPI & Prefer-forward critic weight & 15 & tuned (default 5) \\
+MPPI & Path-align trajectory step & 3 & tuned (default 4) \\
+MPPI & Footprint-aware collision cost & on & tuned (default off)\\
+MPPI & Goal checker & 0.30~m, 0.5~rad & tuned (default 0.25, 0.25) \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+The 0.30~m tolerance at which Nav2 declares a goal reached is looser than the strict 0.15~m threshold used in the evaluation (Section~\ref{sec:results}), so Nav2 can report success at distances that the strict check rejects.
+
+% \paragraph{Scope and limitations.}
+% The current planner supports exploration and mapping but does not implement systematic floor coverage. Adding a coverage-planning component remains future work. The inflation radius, turning radius, goal clearance and velocity limits are configured for the simulated base, which measures $0.30 \times 0.25$~m. These parameters require re-tuning for the physical robot, whose dimensions are approximately $0.60 \times 0.50$~m. The navigation experiments in Section~\ref{sec:results} use Nav2 with AMCL and a ground-truth map, whereas the exploration experiments use RTAB-Map for mapping and localisation.
+%\subsection{Obstacle Detection and Avoidance}
+% Obstacle detection is performed using the camera stream and spatial reasoning from the current map. When an obstacle is detected within a safety threshold, the path is replanned and the robot continues with a corrected trajectory.
+
+%\subsection{Decision Module}
+% The perception outputs are combined with the current operating mode to determine the next action. The fused decision can trigger the robotic arm, vacuum, or path replanning.
+
+\begin{table}[htbp]
+\centering
+\caption{Decision Fusion Logic}\footnotesize\setlength{\tabcolsep}{3pt}
+\label{tab:decision_logic}
+\begin{tabular}{@{}llll@{}}
+\toprule
+\textbf{Trash Class} & \textbf{Mode} & \textbf{is\_obstacle} & \textbf{Action} \\
+\midrule
+bottle & Auto & No & Activate robotic arm \\
+plastic (wrapper) & Auto & No & Activate robotic arm \\
+paper & Auto & No & Activate robotic arm \\
+foil & Auto & No & Activate robotic arm \\
+obstacle & Auto & Yes & Replan path \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% \section{Operating Modes}
+
+% \label{sec:modes}
+
+% \subsection{Manual Mode}
+% The manual mode involves the operator to have the complete flexibility in controlling every aspect of cleaning process. The operator monitors the cleaning area continuosly through a human machine interface (HMI), this allows them to make informed decision regarding robot's movement like speed, direction of movement, cleaning area, and tasks like vacuuming, spot cleaning. Additionally, the HMI also shows warnings,alerts & robot status which helps the operator to identify any issues or malfunctions during cleaning tasks.This mode is ideal for situations where precise control is required, such as cleaning in high-traffic or sensitive areas, or when specific conditions need to be met during cleaning.
+
+% \subsection{Semi-Automatic Mode}
+% Semi-Automatic mode reduces the manual need for control by introducing few autonomous features.This mode maintains some level of control while robot is performing  much of the cleaning process autonomously. The operator's role involves selecting the selecting the specific area to be cleaned, choosing the type the type of cleaning (e.g.,mopping,vacuuming,scrubbing), and defining the duration for the task. Once these parameters are set, the robot takes over and
+% executes the cleaning operation within the defined area. This mode reduces the need for constant
+% manual intervention, allowing the operator to manage multiple tasks simultaneously. Similar to
+% Manual Mode, the operator can view a continuous video feed, monitor real-time analysis, and
+% receive system alerts. However, with less hands-on control required, this mode provides a more
+% efficient balance of human oversight and robotic autonomy, making it ideal for routine or less
+% complex cleaning tasks.
+
+% \subsection{Automatic Mode}
+% An autonomous mode functions independently without the input from the operator. In this mode, the robot uses its mapping technology to autonomously detect the areas that require cleaning, determine the best course of action, and perform the necessary cleaning tasks. The robot’s object detection algorithms decide whether vacuuming, mopping, or another cleaning operation is needed, adjusting its approach as the environment changes. Throughout the process, the operator is still able to view the video feed and ongoing analysis, and any relevant system alerts will be displayed.However, the robot handles the entire cleaning procedure autonomously, making this mode particularly useful for large or complex areas that require continuous, hands-off operation. With minimal operator intervention, the robot can effectively and efficiently maintain cleanliness without requiring constant supervision.
+
+
+\section{Implementation}
+\label{sec:implementation}
+
+% \subsection{ROS Node Architecture}
+% % The ROS-based implementation consists of camera, SLAM, detection, decision, arm, vacuum, and interface nodes. These nodes communicate through standard topics and message types.
+
+% \subsection{Robotic Arm Control}
+% % The robotic arm is controlled through servo commands sent from the microcontroller. The pick-and-place sequence includes approach, grip, lift, transport, release, and reset.
+
+% Requires in preamble: \usepackage{booktabs}
+% Drop this after Subsection 7.2 inside Section 7 (Experimental Results).
+
+\subsection{Edge Deployment Optimisation}
+\label{subsec:edge}
+
+All three models were profiled for footprint, latency, throughput, and CPU and memory consumption, and evaluated in half precision (FP16) form on Jetson Orin Nano board. Latency was measured with 10 discarded warm-up passes followed by 100 timed passes, and the mean and standard deviation are reported. Table~\ref{tab:edge-config} summarises the model configurations and footprints.
+
+\begin{table}[t]
+\centering
+\caption{Model configuration and footprint. The 8-bit integer (INT8) row refers to the benchmarking run; the Jetson Orin Nano results use half precision (FP16).}
+\label{tab:edge-config}
+\footnotesize\setlength{\tabcolsep}{3pt}
+\begin{tabular}{lccc}
+\toprule
+ & YOLOv8n & YOLOv11n-seg & RF-DETR Medium \\
+\midrule
+Model file size (MB)     & 6.23 & 5.98 & 133.02 \\
+Parameters (M)           & 3.01 & 2.84 & 33.3 \\
+Weights format           & .pt  & .pt  & .pth \\
+Input size (px)          & $640{\times}640$ & $576{\times}576$ & $448{\times}448$ \\
+Quantisation             & INT8 & INT8 & INT8 \\
+Epochs / batch size      & 100 / 8 & 100 / 8 & 100 / 16 \\
+Optimizer                & auto & AdamW & AdamW \\
+Training time (h)        & 0.36 & 0.95 & 3.61 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The YOLO checkpoints are about 6~MB (${\sim}3$~M parameters), whereas RF-DETR Medium is 133.02~MB, roughly 22$\times$ larger, and takes 3.61~h to train versus 0.36~h (YOLOv8n) and 0.95~h (YOLOv11n-seg), a practical cost when retraining for new debris types.
+
+\begin{table}[t]
+\centering
+\caption{Detection accuracy measured in the benchmarking run (validation set, 8 classes). Best value per column in bold.}
+\label{tab:edge-acc}
+\footnotesize\setlength{\tabcolsep}{3pt}
+\setlength{\tabcolsep}{2pt}\begin{tabular}{@{}lccccc@{}}
+\toprule
+Model & Prec. & Rec. & F1 & mAP@0.5 & mAP@0.5:0.95 \\
+\midrule
+YOLOv8n        & 0.9357 & 0.8974 & 0.9161 & 0.9209 & 0.8206 \\
+YOLOv11n-seg   & 0.9159 & 0.9069 & 0.9114 & 0.9248 & 0.8195 \\
+RF-DETR Medium & 0.9340 & 0.8852 & 0.9075 & 0.9323 & 0.8432 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+RF-DETR is strongest on localisation-sensitive metrics (mAP@0.5 of 0.9323; mAP@0.5:0.95 of 0.8432, about 2.3 points above both YOLO models). YOLOv8n has the highest precision and F1, and YOLOv11n-seg the highest recall (Table~\ref{tab:edge-acc}). The accuracy cost of a nano model is thus only 0.7 to 1.1 points of mAP@0.5 for a twentyfold size reduction.
+
+\begin{table}[t]
+\centering
+\caption{Runtime and resource usage metrics. Peak CPU is reported as an aggregate over all the CPU cores (100\% implies one fully used core).}
+\label{tab:edge-runtime}
+\footnotesize\setlength{\tabcolsep}{3pt}
+\begin{tabular}{@{}p{0.38\columnwidth}ccc@{}}
+\toprule
+ & YOLOv8n & YOLOv11n-seg & RF-DETR-M \\
+\midrule
+Mean latency (ms)              & 23.65 & 30.18 & 92.48 \\
+Latency std.\ dev.\ (ms)       & 2.22 & 1.56 & 6.45 \\
+FPS, pre-quantisation          & 42.3 & 33.1 & 10.8 \\
+FPS, INT8-quantisation  & 4.4 & 5.0 & 10.0 \\
+Peak CPU usage (\%)            & 1209.8 & 988.4 & 1139.3 \\
+Peak RAM (MB)                  & 659.6 & 608.7 & 796.9 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+In the benchmarking run before quantisation, YOLOv8n and YOLOv11n-seg ran at 23.65~ms (42.3~FPS) and 30.18~ms (33.1~FPS), both above the 30~FPS real-time threshold, while RF-DETR needed 92.48~ms (10.8~FPS), 3 to 4$\times$ slower (Table~\ref{tab:edge-runtime}). Latency was stable (std.\ dev.\ 1.6 to 6.5~ms) and peak RAM stayed below 800~MB for all models.
+
+In the benchmarking run, INT8 quantisation affected throughput unevenly: the YOLO models dropped about 90\% and 85\% (to 4.4 and 5.0~FPS), RF-DETR only about 7\% (to 10.0~FPS). The benefit therefore depends on the architecture and on runtime support for quantised operators, so the INT8 configuration should be profiled on the final hardware.
+
+On the Jetson Orin Nano at half precision (FP16), the end-to-end throughput is mentioned in (Table~\ref{tab:edge-runtime-jetson}). YOLOv11n-seg was the most energy efficient (6.15~FPS/W) and RF-DETR Medium the least (2.79~FPS/W), although all three exceeded the 30~FPS real-time threshold.
+
+Overall, YOLOv11n-seg offers the best edge balance: smallest footprint, lowest memory, highest recall, most stable latency, and instance masks. YOLOv8n is fastest when only boxes are needed. RF-DETR Medium is the most accurate but about 22$\times$ larger and 3 to 4$\times$ slower, so it suits a GPU base station better than the robot.
+
+% TODO before submission:
+% 1. State the INT8 toolchain/runtime (e.g., ONNX Runtime, NCNN, PyTorch) and whether pre-quantisation FPS was measured on CPU or GPU.
+% 2. State the test hardware (CPU model, core count). The sheet lists only the hostname DESKTOP-SU3OTED; a Raspberry Pi 5 run is still needed to support edge claims.
+
+% Requires in preamble: \usepackage{booktabs}
+% Works with article / IEEEtran / most conference classes.
+
+\section{Experimental Results}
+\label{sec:results}
+
+\subsection{Experimental Setup}
+\label{subsec:setup}
+
+All experiments used the Swachh Bauddhika Yantra dataset, a custom trash object dataset with the eight classes: aluminium foil, bottle, cement dust, floor, obstacle, paper, wooden dust, and wrapper. Training images were augmented as described in Section~\ref{sec:trash_detection}; the validation split (175 images) was left unaugmented.
+Three architectures were compared: YOLOv8n, YOLOv11n-seg, and RF-DETR. YOLOv8n is a nano-scale single-stage detector trained for 100 epochs. YOLOv11n-seg is a nano-scale instance segmentation model trained for 60 epochs with early stopping, and its bounding-box and mask heads were evaluated separately. RF-DETR is a transformer-based detector trained for 99 epochs, and both its regular and exponential moving average (EMA) checkpoints were assessed. All models were trained on a single NVIDIA RTX A6000 GPU (48~GB) with mixed-precision training, and hyperparameters were selected through a random search of five trials of 20 epochs each. YOLOv11n-seg used the AdamW optimizer with an initial learning rate of $1.22\times10^{-4}$, a batch size of 8, and $560\times560$ input. RF-DETR used AdamW with an EMA decay of 0.993, a batch size of 16, and $448\times448$ input.
+
+Performance was measured using COCO-standard metrics: mean Average Precision at IoU thresholds of 0.5 (mAP@0.5) and 0.75 (mAP@0.75), averaged over IoU thresholds from 0.5 to 0.95 (mAP@0.5:0.95), along with precision and recall. For the YOLO models, mAP@0.75 was obtained from a dedicated validation run. For RF-DETR, per-class average precision (AP@0.5) was additionally computed at the final epoch to examine class-level behavior.
+
+\subsection{Trash Detection Performance}
+\label{subsec:performance}
+
+All three models achieved strong detection performance on the validation set, with mAP@0.5 above 0.92 in every case (Table~\ref{tab:overall}). RF-DETR obtained the highest mAP@0.5 of 0.9336, followed closely by YOLOv11n-seg (box head) at 0.9302 and YOLOv8n at 0.9271. The difference between the best and worst model is less than 0.7\% indicating that at a safe IoU threshold the three architectures are nearly equivalent. The differences become clearer under stricter localization criteria. RF-DETR achieved the highest mAP@0.5:0.95, at 0.8387 for the regular checkpoint and 0.8432 for the EMA checkpoint, compared with 0.8208 for YOLOv11n-seg and 0.8195 for YOLOv8n. This margin of roughly 1.8\% to 2.4\% suggests that RF-DETR produces tighter bounding boxes across a range of IoU thresholds. At mAP@0.75, YOLOv11n-seg led with 0.8895 ahead of YOLOv8n 0.8817 and RF-DETR 0.8795, so RF-DETR's advantage comes from its mean performance across thresholds and not from any single strict threshold.
+
+\begin{table*}[!t]
+\centering
+\caption{Overall detection performance on the validation set(175 images)}
+\label{tab:overall}
+\footnotesize\setlength{\tabcolsep}{3pt}
+\begin{tabular}{lccccc}
+\toprule
+Model & mAP@0.5 & mAP@0.75 & mAP@0.5:0.95 & Precision & Recall \\
+\midrule
+YOLOv8n (Box)         & 0.9271 & 0.8817 & 0.8195 & 0.9347 & 0.8995 \\
+YOLOv11n-seg (Box)    & 0.9302 & 0.8895 & 0.8208 & 0.9132 & 0.9197 \\
+YOLOv11n-seg (Mask)   & 0.9299 & 0.8450 & 0.7763 & 0.9163 & 0.9221 \\
+RF-DETR (Regular)     & 0.9336 & 0.8795 & 0.8387 & 0.9271 & 0.8935 \\
+RF-DETR (EMA)         & 0.9323 & -     & 0.8432 & -     & -     \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+YOLOv8n achieved the highest precision of 0.9347 while YOLOv11n-seg achieved the highest recall, at 0.9197 for the box head and 0.9221 for the mask head. RF-DETR had a precision of 0.9271 but the lowest recall (0.8935). This indicates that the YOLO models detect more trash instances, while RF-DETR makes fewer positive predictions. 
+
+The segmentation head of YOLOv11n-seg performed comparably to its detection head at a permissive threshold, reaching a mask mAP@0.5 of 0.9299 against 0.9302 for boxes. Mask accuracy declined at stricter thresholds, with an mAP@0.75 of 0.8450 and an mAP@0.5:0.95 of 0.7763, which is expected because pixel-level overlap is harder to match than box overlap. 
+
+Per-class results (Table~\ref{tab:per_class_results}) show that detectability depends on how distinctive a class is. Aluminium foil is detected best by all models (AP 96.5-98.9\%), and bottle, wrapper and paper reach 83.6-96.5\%. The dust classes are weakest: cement dust reaches 82.7-85.3\% AP with the YOLO models but only 64.6\% with RF-DETR, and wooden dust 74.8\% with RF-DETR against 91.2-94.0\% for YOLO. Dust has diffuse texture and unclear boundaries, which bounding boxes represent poorly, and the obstacle class is highly varied (RF-DETR 77.3\%). Segmentation masks or more dust and obstacle data are the natural next steps.
+
+% \begin{table}[t]
+% \centering
+% \caption{RF-DETR per-class AP@0.5 at the final epoch.}
+% \label{tab:perclass}
+% \footnotesize\setlength{\tabcolsep}{3pt}
+% \begin{tabular}{lc}
+% \toprule
+% Class & AP@0.5 \\
+% \midrule
+% Aluminium Foil & 0.9611 \\
+% Floor          & 0.8954 \\
+% Wrapper        & 0.8654 \\
+% Bottle         & 0.8444 \\
+% Paper          & 0.8084 \\
+% Wooden Dust    & 0.7539 \\
+% Obstacle       & 0.7431 \\
+% Cement Dust    & 0.6560 \\
+% \bottomrule
+% \end{tabular}
+% \end{table}
+
+\begin{table*}[t]
+\centering
+\caption{Runtime and resource usage on the Jetson Orin Nano for the models after half precision quantisation has been applied}
+\label{tab:edge-runtime-jetson}
+\footnotesize\setlength{\tabcolsep}{4pt}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+ & YOLOv8n & YOLOv11n-seg & RF-DETR Medium \\
+\midrule
+GPU inference time (ms) & 3.98 $\pm$ 0.13 & 4.99 $\pm$ 0.05 & 14.14 $\pm$ 2.05 \\
+GPU-only throughput (FPS) & 252 & 201 & 72 \\
+End-to-end latency (ms) & 13.35 $\pm$ 2.39 & 12.61 $\pm$ 0.24 & 24.23 $\pm$ 1.87 \\
+End-to-end throughput (FPS) & 76.4 & 79.3 & 41.4 \\
+Board power (W) & 12.66 & 12.90 & 14.85 \\
+Energy efficiency (FPS/W) & 6.05 & 6.15 & 2.79 \\
+Peak RAM (MB) & 244 & 341 & 323 \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{table*}[!t]
+\centering
+\caption{Per-Class Detection Performance on the Test Set}
+\label{tab:per_class_results}
+\resizebox{\textwidth}{!}{
+\begin{tabular}{lcccccccccccc}
+\toprule
+& \multicolumn{4}{c}{\textbf{YOLOv8}} &
+\multicolumn{4}{c}{\textbf{YOLOv11n-seg}} &
+\multicolumn{4}{c}{\textbf{RF-DETR}} \\
+\cmidrule(lr){2-5}
+\cmidrule(lr){6-9}
+\cmidrule(lr){10-13}
+\textbf{Class}
+& \textbf{Prec. (in\%)} & \textbf{Rec. (in\%)} & \textbf{F1 (in\%)} & \textbf{AP (in\%)}
+& \textbf{Prec. (in\%)} & \textbf{Rec. (in\%)} & \textbf{F1 (in\%)} & \textbf{AP (in\%)}
+& \textbf{Prec. (in\%)} & \textbf{Rec. (in\%)} & \textbf{F1 (in\%)} & \textbf{AP (in\%)} \\
+\midrule
+aluminium\_foil
+& 92.06 & 100.00 & 95.86 & 98.30
+& 90.79 & 100.00 & 95.17 & 98.94
+& 92.86 & 100.00 & 96.30 & 96.49 \\
+bottle
+& 95.00 & 95.07 & 95.04 & 95.03
+& 93.80 & 96.25 & 95.01 & 93.09
+& 93.67 & 92.50 & 93.08 & 86.34 \\
+cement\_dust
+& 88.23 & 80.49 & 84.18 & 85.30
+& 86.25 & 78.05 & 81.94 & 82.68
+& 87.22 & 85.37 & 90.91 & 64.56 \\
+floor
+& 94.84 & 88.89 & 91.77 & 90.58
+& 96.48 & 89.95 & 93.10 & 91.93
+& 98.86 & 91.53 & 95.05 & 89.32 \\
+obstacle
+& 86.44 & 82.64 & 84.50 & 87.22
+& 81.11 & 87.87 & 84.35 & 89.07
+& 85.23 & 85.81 & 85.52 & 77.29 \\
+paper
+& 96.94 & 87.87 & 92.18 & 92.94
+& 94.15 & 89.35 & 91.68 & 93.65
+& 96.18 & 87.50 & 91.64 & 83.56 \\
+wooden\_dust
+& 97.30 & 91.30 & 94.21 & 91.15
+& 97.59 & 88.21 & 92.67 & 93.97
+& 90.48 & 82.61 & 86.36 & 74.83 \\
+wrapper
+& 97.72 & 91.67 & 94.59 & 96.17
+& 92.55 & 95.83 & 94.16 & 96.52
+& 91.67 & 91.67 & 91.67 & 88.46 \\
+\bottomrule
+\end{tabular}
+}
+\end{table*}
+
+\subsection{SLAM Navigation Performance}
+\label{sec:slam_results}
+% \begin{figure*}[!t]
+% \centering
+% \begin{subfigure}[t]{0.48\textwidth}
+%     \centering
+%     \includegraphics[width=\linewidth,height=0.4\textheight,keepaspectratio]{images/hmi.jpg}
+%     \caption{Full view of the SBY}
+%     \label{fig:sby_full}
+% \end{subfigure}\hfill
+% \begin{subfigure}[t]{0.48\textwidth}
+%     \centering
+%     \includegraphics[width=\linewidth,height=0.4\textheight,keepaspectratio]{images/hmi.jpeg}
+%     \caption{HMI view}
+%     \label{fig:sby_hmi}
+% \end{subfigure}
+% \caption{Human Machine Interface (HMI) of the SBY.}
+% \label{fig:test_worlds1}
+% \end{figure*}
+All experiments were conducted in Gazebo using the held-out test worlds. Two experiments were performed with different localisation configurations. In the exploration experiments, RTAB-Map estimates the robot's pose and builds the map, with noise injected into the wheel odometry. In the navigation experiments, Nav2 uses a ground-truth map and Adaptive Monte Carlo Localisation (AMCL) for localisation, allowing path planning and control to be evaluated without RTAB-Map. Fig.~\ref{fig:actual_vs_explored} shows the floor plans of the test worlds along with SLAM drift.
+
+Nine exploration episodes were conducted across three worlds, with three random seeds per world, and all episodes were included in the analysis. Table~\ref{tab:slam_results} summarises the results. The mean reachable floor coverage was 61.4\%, with a 95\% bootstrap interval of 18.5-88.0\%. However, performance varied considerably across worlds. Coverage reached 86.3\% in \texttt{multi\_room\_loop} and 83.8\% in \texttt{office}, but was only 14.3\% in \texttt{maze\_dead\_ends}. In two of the three maze episodes, the explorer did not issue any navigation goals, and the robot remained near its starting position, mapping only 1.2\% and 1.8\% of the floor, respectively. Map completeness, measured against the ground-truth grid, showed a similar pattern, with a pooled mean of 47.7\% and a 95\% bootstrap interval of 15.1-70.6\%. Fig.~\ref{fig:actual_vs_explored} compares the maps explored in each run with the true floor plans, and Fig.~\ref{fig:exploration_trajectories} shows the paths of the nine exploration episodes.
+
+\begin{table*}[!t]
+\centering
+\caption{Exploration and SLAM results for the simulated test worlds. ATE: absolute trajectory error; RPE: relative pose error.}
+\label{tab:slam_results}
+{\small
+\begin{tabular}{lccccc}
+\toprule
+\textbf{World} & \textbf{Area (m$^2$)} & \textbf{Coverage (\%)} & \textbf{Completeness (\%)} & \textbf{ATE (m)} & \textbf{RPE (m/m)} \\
+\midrule
+maze\_dead\_ends & 33.3 & 14.3 [1.2, 39.9] & 11.9 [1.7, 31.8] & 0.76 & 0.30 \\
+multi\_room\_loop & 39.1 & 86.3 [82.6, 88.6] & 65.4 [59.2, 68.9] & 0.74 [0.40, 0.97] & 0.35 [0.12, 0.67] \\
+office & 34.0 & 83.8 [71.5, 91.6] & 65.9 [45.9, 78.0] & 0.35 [0.13, 0.51] & 0.13 [0.11, 0.15] \\
+\midrule
+Pooled & - & 61.4 [18.5, 88.0] & 47.7 [15.1, 70.6] & 0.57 [0.33, 0.86] & 0.25 [0.14, 0.44] \\
+\bottomrule
+\end{tabular}}
+\end{table*}
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=\textwidth,height=0.45\textheight,keepaspectratio]{images/fig_actual_vs_explored.png}
+\caption{Actual floor plan (left) and the occupancy grid explored by the robot in each of three runs. Maps are placed using the starting pose only, so warped shapes show SLAM drift. In the maze the explorer sent no goal in two of three runs.}
+\label{fig:actual_vs_explored}
+\end{figure*}
+
+\begin{figure*}[!t]
+\centering
+\includegraphics[width=\textwidth,height=0.4\textheight,keepaspectratio]{images/fig_exploration_trajectories.png}
+\caption{Paths of the nine exploration episodes over the floor plans of their worlds.}
+\label{fig:exploration_trajectories}
+\end{figure*}
+% \paragraph{Trajectory error and contact.}
+The absolute trajectory error of the SLAM pose against ground truth, without scale correction, was 0.57~m on average (interval 0.33 to 0.86~m), and the relative error was 0.25~m per metre travelled. Contact with obstacles was the main source of large errors. In 4 of the 9 episodes, wheel slip during contact corrupted the heading given by wheel odometry, and RTAB-Map did not recover from it. Excluding these episodes, the trajectory error was 0.44~m (3 episodes), and before the first corruption it was 0.33~m (7 episodes). Because the corrupted episodes also affect the coverage and completeness figures above, those figures should be read as an estimate of what the full pipeline achieves in simulation, not of the best case. This work does not quantify the improvement provided by loop closures over raw odometry, as the trajectory error of wheel odometry alone was not measured.
+
+% \paragraph{Loop closure.}
+A loop closure was counted as correct if its relative transform matched ground truth within 0.10~m and $5^{\circ}$. Of the 1051 closures accepted across the exploration episodes, 35.2\% were correct (370 closures; interval 17.9 to 58.6\%), and on average 28.2\% of the revisits produced a closure. The precision is a lower bound, because closures are matched to ground truth with a timing bias. It was also low in multi\_room\_loop and office (24.9\% and 27.2\%), the two worlds with the most revisits, a closer analysis of these false closures is planned.
+
+% \paragraph{Navigation.}
+Twelve navigation episodes were run, four seeds in each of three worlds, with up to 20 random goals per episode (178 goals in total, as seven episodes ended early because the robot was judged stuck). Nav2 reported 50.0\% of the goals as reached. When checked against the ground-truth position of the robot within 0.30~m, only 29.2\% were reached (52 of 178 goals; interval 16.0 to 40.0\%), and with the stricter 0.15~m threshold the figure was 9.0\%. Averaged per episode, the ground-truth success rate was 23.4\% (interval 2.8 to 46.7\%). The result depended strongly on the world (Table~\ref{tab:nav_results}): 48.8\% in two\_rooms\_door, 20.7\% in office and 2.5\% in maze\_dead\_ends. Where goals were reached, the travelled path was on average 1.21 times the shortest feasible path. The robot triggered about 148 recovery behaviours per episode and recorded 1.9 contact events per episode on average, where a single continuous contact can count as several events.
+
+\begin{table*}[!t]
+\centering
+\caption{Navigation performance in the simulated test worlds. GT: ground truth.}
+\label{tab:nav_results}
+{\small
+\begin{tabular}{lcccccc}
+\toprule
+\textbf{World} & \textbf{Goals} & \textbf{Nav2 (\%)} & \textbf{GT 0.30~m (\%)} & \textbf{GT 0.15~m (\%)} & \textbf{Path ratio} & \textbf{Recoveries/ep.} \\
+\midrule
+maze\_dead\_ends & 40 & 2.5 [0.0, 8.3] & 2.5 [0.0, 8.3] & 2.5 [0.0, 8.3] & 1.09 & 167.5 \\
+office & 58 & 37.9 [26.1, 47.2] & 20.7 [8.7, 25.0] & 1.7 [0.0, 5.0] & 1.19 [1.15, 1.23] & 167.2 \\
+two\_rooms\_door & 80 & 82.5 [68.8, 95.0] & 48.8 [40.0, 58.8] & 17.5 [12.5, 22.5] & 1.26 [1.18, 1.34] & 108.0 \\
+\midrule
+Pooled & 178 & 50.0 [28.1, 67.8] & 29.2 [16.0, 40.0] & 9.0 [3.3, 14.1] & 1.21 [1.09, 1.27] & 147.6 \\
+\bottomrule
+\end{tabular}}
+\end{table*}
+
+
+% \paragraph{Source of the navigation failures.}
+The gap between the success rate reported by Nav2 and the ground-truth success rate shows that Nav2 often declared a goal reached while the robot was not at the goal, which points to errors in the pose estimate. The mean AMCL position error was 0.318~m (interval 0.183-0.509~m). With AMCL, 6 of 19 goals were reached according to ground truth, whereas with ground-truth localisation, 19 of 20 goals were reached with the same planner and controller. This diagnostic covers a single episode per setting on a development world, so it is indicative evidence and not a test result. It does suggest that the low success rates in Table~\ref{tab:nav_results} reflect the localisation set-up more than the planner, and they should not be taken as a measure of the RTAB-Map pipeline.
+% \paragraph{Limitations of the evaluation.}
+% All results come from simulation with a base ($0.30 \times 0.25$~m) smaller than the physical robot ($0.60 \times 0.50$~m), a camera without sensor noise and a depth field of view of $69.4^{\circ}$. The test campaign  uses three or four seeds per world, which gives wide intervals, giving 9 episodes instead for exploration, and 178 goals for navigation. The measured real-time factor was between 0.73 and 1.00. The lowest values occurred in the six office and multi\_room\_loop exploration episodes. Injected odometry noise was applied only in the exploration campaign.
+
+% \paragraph{Limitations of the evaluation.}
+% All results come from simulation with a base ($0.30 \times 0.25$~m) smaller than the physical robot ($0.60 \times 0.50$~m), a camera without sensor noise and a depth field of view of $69.4^{\circ}$. The test campaign was shortened to four hours and therefore uses three or four seeds per world, which gives wide intervals, and fewer episodes than originally planned (9 instead of 15 for exploration, and 178 goals instead of about 240 for navigation). The measured real-time factor was between 0.73 and 1.00. The lowest values occurred in the six office and multi\_room\_loop exploration episodes, which ran three at a time on an 8-core laptop. Injected odometry noise was applied only in the exploration campaign. Finally, nothing reported here was run on the Jetson Orin Nano or on the physical robot.
+
+
+\subsection{Safety and Obstacle Avoidance Performance}
+\label{sec:avoid_results}
+Obstacle avoidance was tested in two scenarios with three random seeds each (six valid episodes). In \texttt{avoid\_u\_trap} the robot must reach a goal past a static U-shaped trap. In \texttt{avoid\_dynamic\_sudden} a $0.4 \times 0.4$~m box starts moving at 0.5~m/s from behind a wall while the robot drives to its goal. A trial succeeds only if the goal is reached with no contact.
+
+The static scenario succeeded in 3 of 3 trials and the dynamic scenario in 1 of 3, so 4 of 6 overall (66.7\%, 95\% Wilson interval 30.0-90.3\%). The goal was reached in 5 of the 6 trials, and one contact event occurred in total. The mean minimum clearance to an obstacle was 0.159~m (interval 0.076-0.227~m). It is slightly optimistic, because the wheels protrude about 1.8~cm beyond the footprint used for the measurement. With three trials per scenario the intervals are wide. The static trap was handled, but the robot did not reliably avoid the suddenly moving obstacle.
+
+Contact events per episode were 1.78 in exploration, 1.92 in navigation and 0.17 in avoidance. Contact bursts separated by more than 0.5~s are counted separately, so one jam can count three to seven times. The share of obstacle encounters passed without contact was 98.4\% in exploration, 93.2\% in navigation and 80.0\% in the avoidance scenarios, where each episode had only one to three encounters. Walls are excluded from this measure, so \texttt{maze\_dead\_ends} has no encounters. The RMS curvature of the driven path in navigation was 3.01~m$^{-1}$.
+
+\subsection{System Responsiveness, Efficiency and Computational Cost}
+\label{sec:sys_perf}
+\paragraph{Responsiveness.}
+With the SLAM stack running, the time from a velocity command to 50\% of the commanded velocity was 166~ms (interval 160-172~ms; 95th percentile 206~ms), and the time to stop was 260~ms (interval 250-270~ms; 95th percentile 301~ms), from two valid episodes. Both are below the 0.5~s deadline set in advance. The two episodes without the SLAM stack are invalid under the validity rules, which require RTAB-Map updates, and are excluded. The median time from sending a goal to the first valid plan was about 10~ms in navigation and 30~ms in exploration.
+
+\paragraph{Exploration efficiency.}
+Table~\ref{tab:efficiency} summarises the nine exploration episodes. The robot sent 15.2 goals per episode and triggered 81.9 recovery behaviours, of which 70-80\% were instant costmap clears. Half of the reachable area was explored after 67.7~s on average (seven episodes; the two maze episodes that never moved are excluded), and the time-averaged explored share was 52.9\%. The robot passed over mapped cells 1.95 times on average, and 37.6~m$^2$ of free floor was never swept. The mean ground-truth distance travelled was 44.2~m. Wheel odometry drifted by 8.6\% of the distance travelled (seven episodes). The cleaning efficiency was 0.055. This measure is an additional one because explorer was not designed to clean
+
+\begin{table}[t]
+\centering
+\caption{Exploration efficiency (nine episodes, 95\% bootstrap intervals).}
+\label{tab:efficiency}
+\footnotesize\setlength{\tabcolsep}{3pt}
+\begin{tabular}{lc}
+\toprule
+\textbf{Metric} & \textbf{Value} \\
+\midrule
+Goals per episode & 15.2 [6.3, 21.0] \\
+Recoveries per episode & 81.9 [31, 116] \\
+Time to 50\% explored (s, $n=7$) & 67.7 [39.8, 124.7] \\
+Time-averaged explored share (\%) & 52.9 [21.2, 74.6] \\
+Overlap ratio & 1.95 [1.44, 2.45] \\
+Missed area (m$^2$) & 37.6 [33.7, 40.7] \\
+Distance travelled (m) & 44.2 [19.7, 59.7] \\
+Energy proxy (m$^2$/s) & 23.2 [10.3, 31.4] \\
+Odometry drift ratio ($n=7$) & 0.086 [0.022, 0.126] \\
+Cleaning efficiency & 0.055 [0.023, 0.084] \\
+\bottomrule
+\end{tabular}
+\end{table}
+The simulated base (0.30×0.25~m) is smaller than the physical robot (0.60×0.50~m); the simulated camera has no sensor noise and a $69.4^{\circ}$ depth field of view (about $87^{\circ}$ for the D435i); and its textured walls may ease loop closure compared with plain real corridors. Inflation radius, turning radius, goal clearance and speed limits are tuned for the simulated base and need re-tuning on hardware. The planner supports exploration but not systematic floor coverage. Exploration localises with RTAB-Map whereas the navigation experiments use AMCL on a ground-truth map, so the two are not directly comparable. With three or four seeds per world (9 exploration episodes, 178 navigation goals) the intervals are wide; the real-time factor was 0.73-1.00 and odometry noise was injected only in exploration. The navigation, exploration and avoidance results come from simulation, and the detector benchmarks ran on a Jetson Orin Nano but not on the robot.
+
+
+
+% \subsection{Comparison with Related Systems}
+% The proposed system is compared with recent trash detection and cleaning robot approaches in terms of performance, latency, and functional integration.
+
+% \subsection{Qualitative Results}
+% Qualitative evaluation includes robot navigation, trash detection overlays, robotic arm pickup, and live human-machine interface output.
+
+% \section{Discussion}
+% \label{sec:discussion}
+% The results are interpreted in terms of model capability, system design choices, and deployment constraints. Strong performance is expected for clear solid waste classes, while lower performance may occur in low-light scenes or on visually ambiguous debris. The main limitations include monocular depth estimation, small-scale testing, and reduced robustness in difficult lighting or texture-poor environments.
+% \section*{Declaration on the Use of Artificial Intelligence}
+% Generative artificial intelligence tools (Claude and ChatGPT) were used to generate parts of the software code and to help validate the system. The authors reviewed and tested all AI-assisted code and take full responsibility for the software, the results and the content of this paper.
+
+\section{Conclusion and Future Work}
+\label{sec:conclusion}
+This work covered the navigation and trash-detection subsystems of Swachh Bauddhika Yantra. The physical prototype was made to perform manual mode, while the software for the navigation subsystem was run in Gazebo, achieving an average of 61.4\% of the reachable floor, with an average trajectory error of 0.57~m. 52 out of 178 navigation goals along with 4 out of 6 obstacle avoidance trials were successful. When ground-truth pose replaced AMCL, 19 out of 20 goals were reached. For trash detection: YOLOV8n, YOLOv11n-seg and RF-DETR were trained on custom made dataset, with all surpassing 0.92 mAP. When deployed on Jetson Orin Nano in FP16, models achieved a maximum of 79 frames per second, while drawing 12.7 to 14.9 watts
+% This work presented the navigation and trash-detection subsystems of Swachh Bauddhika Yantra. The hardware prototype has been built and tested on Manual Mode. The software for the robot was built and tested in Gazebo environment. The three models, YOLOv11n-seg, RF-DETR and YOLO v8n were trained on the custom-made dataset. 
+% In simulation, the exploration covered a mean of 61.4\% of the reachable floor over nine episodes (86.3\% in \texttt{multi\_room\_loop}, 83.8\% in \texttt{office} and 14.3\% in \texttt{maze\_dead\_ends}), with a mean trajectory error of 0.57~m. On a known map, 29.2\% of 178 navigation goals (52 goals) were reached within 0.30~m of the true position, and obstacle avoidance succeeded in 4 of 6 trials. A diagnostic run, in which 19 of 20 goals were reached with ground-truth localisation against 6 of 19 with AMCL. For trash detection, YOLOv8n, YOLOv11n-seg and RF-DETR Medium were trained on a custom-made dataset of 877 images in 8 classes and reached mAP@0.5 of 0.921, 0.925 and 0.932, respectively. On the Jetson Orin Nano at half precision, they ran at 76.4, 79.3 and 41.4~FPS with a board power of 12.7 to 14.9~W, all above the 30~FPS real-time threshold.
+
+Future work will deploy and validate the navigation software on the physical robot and integrate the navigation and detection subsystems into a single system. It will also address the maze episodes in which no goals were issued and the avoidance of suddenly moving obstacles, and complete the Semi-Automatic and Automatic Modes.
+
+
+\label{sec:Future work}
+Future work would involve hardware deployment and validation of the software tested on Gazebo. Along with integration of the subsystems into a single unified system. Additionally addressing failures regarding maze episodes without goals and avoidance of moving obstacles, while also finishing Semi-Automatic and Automatic Modes on the physical robot.
+\section*{Acknowledgment}
+The authors acknowledge the guidance and support received during the development of this work from B.M.S. College of Engineering, Bengaluru as well as the Departments of Computer Science and Engineering (CSE), and Electronics and Communication Engineering (ECE). Additionally also acknowledging Anand Iyer, Director Projects in Innovative Consulting,
+Innovative Consulting Inc (ICI) \& Head, ISA-ACARD and Vishwajeet Gokhale, CEO,  Tantradnya, Pune for their valuable contributions.
+
+Generative artificial intelligence tools (Claude and ChatGPT) were used to generate the software code and to help validate the system. The authors reviewed and tested all AI-assisted code and take full responsibility for the software, the results and the content of this paper.
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+\raggedbottom
+\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{images/author_pictures/hegde.png}}]{Dr. Veena N. Hegde}
+is Professor in the Department of Electronics and Communication Engineering at B.M.S. College of Engineering, Bengaluru. She holds a Ph.D.  in Electronics. Her areas of teaching include Embedded Systems, Microcontrollers, Digital Signal Processing and Computer Vision. She received the ISA Volunteer Leader of the Year award in 2017, 2024 and 2025. She has also guided award-winning undergraduate projects and secured research grants from KSCST and IIT Bombay, GIAN . She has more than 25 publications and currently two students working under her towards their Ph.D.
+\end{IEEEbiography}
+
+\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{images/author_pictures/venka.png}}]{Dr. Umadevi Venkatappa} is Professor at Department of Computer Science and Engineering, B.M.S. College of Engineering, Bengaluru. She has published one book, three book chapters, 33 journal papers and 37  conference papers.
+% TODO: degrees (field, institution, city, year), research interests, IEEE membership.
+\end{IEEEbiography}
+
+\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{images/author_pictures/prasa.png}}]{Hrishikesh R Prasad}
+is a final-year student in the Department of Computer Science and Engineering, B.M.S. College of Engineering, Bengaluru, India.
+% TODO: degree program, expected graduation year, research interests.
+\end{IEEEbiography}
+
+\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{images/author_pictures/srini.png}}]{Sanjana Srinivas}
+is a final-year student in the Department of Computer Science and Engineering, B.M.S. College of Engineering, Bengaluru, India.
+% TODO: degree program, expected graduation year, research interests.
+\end{IEEEbiography}
+
+\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{images/author_pictures/uttan.png}}]{Shashank U}
+is a final-year student in the Department of Computer Science and Engineering, B.M.S. College of Engineering, Bengaluru, India.
+% TODO: degree program, expected graduation year, research interests.
+\end{IEEEbiography}
+
+\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{images/author_pictures/manas.png}}]{Siripurapu Manaswi}
+is a final-year student in the Department of Computer Science and Engineering, B.M.S. College of Engineering, Bengaluru, India. \end{IEEEbiography}
+
+
+\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{images/author_pictures/Shree.png}}]{Shreesha S}
+is a final-year student in the Department of Electronics and Communication Engineering, B.M.S. College of Engineering, Bengaluru, India.
+\end{IEEEbiography}
+\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{images/author_pictures/Rajat.png}}]{Rajat Chandrashekhar Athani}
+is a final-year student in the Department of Electronics and Communication Engineering, B.M.S. College of Engineering, Bengaluru, India.
+\end{IEEEbiography}
+\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{images/author_pictures/Ravit.png}}]{Raviteja M}
+is a final-year student in the Department of Electronics and Communication Engineering, B.M.S. College of Engineering, Bengaluru, India.
+\end{IEEEbiography}
+\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{images/author_pictures/Preet.png}}]{Preetham N}
+is a final-year student in the Department of Electronics and Communication Engineering, B.M.S. College of Engineering, Bengaluru, India.
+\end{IEEEbiography}
+\vfill\EOD
+\end{document}
