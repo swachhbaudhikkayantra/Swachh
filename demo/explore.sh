@@ -9,8 +9,7 @@ source "$(dirname "$0")/common.sh"
 pick_world "${1:-office}"
 shift || true
 require_clean
-trap 'stop_bg' EXIT
-trap 'exit 130' INT TERM
+install_cleanup
 
 # Own database file, so the demo never touches ~/.ros/rtabmap.db. Start every run from a blank map.
 DB="$HOME/.ros/swachh_demo_rtabmap.db"
@@ -29,6 +28,6 @@ cat <<EOF
 
 EOF
 start_rviz
-ros2 launch vacuum_exploration exploration.launch.py \
+run_fg ros2 launch vacuum_exploration exploration.launch.py \
     environment:="$WORLD" spawn_x:="$SX" spawn_y:="$SY" spawn_yaw:=0.0 \
     database_path:="$DB" use_rviz:=false "$@"

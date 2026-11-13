@@ -10,8 +10,7 @@ SECS="${1:-25}"
 LIST=("$@")
 [[ ${#LIST[@]} -eq 0 ]] && LIST=(office multi_room_loop maze_dead_ends two_rooms_door corridor symmetric_hall apartment avoid_u_trap avoid_dynamic_sudden)
 require_clean
-trap 'stop_bg' EXIT
-trap 'exit 130' INT TERM
+install_cleanup
 
 n=0
 for w in "${LIST[@]}"; do

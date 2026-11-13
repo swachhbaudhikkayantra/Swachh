@@ -17,4 +17,5 @@ cat <<EOF
  Robot: 0.30 x 0.25 m box, one forward RGB-D camera, wheel odometry, no lidar, no sensor noise.
 $( [[ $WORLD == avoid_dynamic_* ]] && echo ' (The moving box only moves during ./avoid.sh, which starts the mover node.)' )
 EOF
-exec ros2 launch vacuum_bringup sim.launch.py "${WORLD_ARGS[@]}" spawn_x:="$SX" spawn_y:="$SY" use_rviz:=false
+install_cleanup
+run_fg ros2 launch vacuum_bringup sim.launch.py "${WORLD_ARGS[@]}" spawn_x:="$SX" spawn_y:="$SY" use_rviz:=false

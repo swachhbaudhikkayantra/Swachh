@@ -103,8 +103,13 @@ start_rviz() {
 
 # Refuse to start on top of a running simulation (two Gazebos on one DDS domain break each other).
 require_clean() {
-    if pgrep -u "$USER" -af '[g]z sim' >/dev/null; then
-        echo "[demo] A Gazebo simulation is already running. Stop it first:  $DEMO_DIR/stop.sh"
+    local left
+    left="$(stack_pids)"
+    if [[ -n "$left" ]]; then
+        echo "[demo] Something from an earlier run is still running (Gazebo and/or ROS nodes):"
+        # shellcheck disable=SC2086
+        ps -o pid,etime,cmd -p $(echo "$left" | tr '\n' ',' | sed 's/,$//') | cut -c1-110
+        echo "[demo] Stop it first:  $DEMO_DIR/stop.sh"
         exit 1
     fi
 }
@@ -138,6 +143,63 @@ stop_bg() {
     for pid in "${PIDS[@]:-}"; do
         [[ -n "$pid" ]] && kill -TERM -- "-$pid" 2>/dev/null || true
     done
+}
+
+# run_fg cmd args... : run a program (output stays on this terminal) in its OWN process group, so that
+# Ctrl+C reaches this script first and the script can shut everything down itself.
+run_fg() {
+    local p
+    set -m
+    "$@" </dev/null &
+    p=$!
+    PIDS+=("$p")
+    set +m
+    wait "$p"
+}
+
+# ---- sweep: every process of the demo stack (ROS nodes, Gazebo, RViz, harness, teleop, GUI) ----
+# Anchored on the executable so it can never match an unrelated shell whose command line merely
+# mentions these words, and it never signals this script or its parents (the terminal / IDE shell).
+STACK_PAT='^(/opt/ros/jazzy/|/home/[^ ]*/vacuum_ws/install/|/usr/bin/python3 /opt/ros/jazzy/|/usr/bin/python3 /home/[^ ]*/vacuum_ws/install/|python3 -m vacuum_eval|ruby /opt/ros/jazzy/opt/gz_tools_vendor|/bin/sh -c ruby /opt/ros/jazzy/opt/gz_tools_vendor|gz sim|python3(\.12)? [^ ]*/(teleop_arrows|robot_steering_gui)|python3 - .*(quick_exploration_noise|fig_actual_vs_explored))'
+_ANC=" $$ "
+_p=$$
+while [[ $_p -gt 1 ]]; do
+    _p="$(awk '{print $4}' "/proc/$_p/stat" 2>/dev/null)"
+    [[ -z $_p ]] && break
+    _ANC+="$_p "
+done
+stack_pids() { pgrep -u "$USER" -f "$STACK_PAT" | while read -r x; do [[ $_ANC == *" $x "* ]] || echo "$x"; done; }
+
+# kill_stack: SIGINT (8 s) -> SIGTERM (4 s) -> SIGKILL (2 s); returns as soon as nothing is left.
+kill_stack() {
+    local step sig secs pids i
+    for step in INT:8 TERM:4 KILL:2; do
+        sig="${step%%:*}"; secs="${step##*:}"
+        pids="$(stack_pids)"
+        [[ -z $pids ]] && return 0
+        # shellcheck disable=SC2086
+        kill -"$sig" $pids 2>/dev/null || true
+        for i in $(seq 1 $((secs * 2))); do
+            sleep 0.5
+            [[ -z "$(stack_pids)" ]] && return 0
+        done
+    done
+    [[ -z "$(stack_pids)" ]]
+}
+
+# cleanup_all: what runs on EXIT / Ctrl+C. Further Ctrl+C presses are ignored while it works.
+cleanup_all() {
+    trap '' INT TERM HUP
+    echo
+    echo "[demo] Stopping everything (about 10 s; extra Ctrl+C is ignored while this runs) ..."
+    stop_bg
+    kill_stack
+    echo "[demo] Stopped."
+}
+# install_cleanup: call once near the top of any script that starts the simulation.
+install_cleanup() {
+    trap cleanup_all EXIT
+    trap 'exit 130' INT TERM HUP
 }
 
 # wait_for_topic TOPIC [SECONDS]

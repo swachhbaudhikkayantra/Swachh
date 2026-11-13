@@ -19,8 +19,7 @@ if [[ ! -f $MAP ]]; then
     exit 1
 fi
 
-trap 'stop_bg' EXIT
-trap 'exit 130' INT TERM
+install_cleanup
 
 cat <<EOF
 
@@ -36,4 +35,4 @@ start_bg sim ros2 launch vacuum_bringup sim.launch.py world:="$WORLD" use_sim_ti
     use_rviz:=false spawn_x:="$SX" spawn_y:="$SY"
 wait_for_topic /clock 60 || true
 sleep 6
-ros2 launch vacuum_nav2 nav2_localization.launch.py map_path:="$MAP" environment:="$WORLD"
+run_fg ros2 launch vacuum_nav2 nav2_localization.launch.py map_path:="$MAP" environment:="$WORLD"

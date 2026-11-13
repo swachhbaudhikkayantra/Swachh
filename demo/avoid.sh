@@ -17,8 +17,7 @@ if [[ "$SCEN" != avoid_* || ! -f "$WS/src/vacuum_gazebo/worlds/$SCEN.sdf" ]]; th
 fi
 pick_any_world "$SCEN"
 require_clean
-trap 'stop_bg' EXIT
-trap 'exit 130' INT TERM
+install_cleanup
 
 cat <<EOF
 
@@ -27,10 +26,14 @@ cat <<EOF
  Watch : Gazebo (the robot and obstacles) and RViz. In RViz the coloured halo around obstacles is the
          local costmap (obstacles + inflation); the magenta line is the planned path being re-planned.
  Result is printed at the end (goal reached? contact?).
+ PATIENCE: the robot sits still at first. The harness waits for the controllers, Nav2 and AMCL to come up
+ and for the robot to localise, THEN sends the goal. On a slow machine (simulation at ~20% of real time,
+ as on the WSL laptop) that takes 1-2 minutes of wall time. Do not Ctrl+C early. The scenario is over
+ when the terminal prints the result; the harness shuts everything down itself.
 
 EOF
 start_rviz
 cd "$WS/src/vacuum_eval" || exit 1
-python3 -m vacuum_eval.run_episode --experiment "demo_$(date +%H%M%S)" --world "$SCEN" \
+run_fg python3 -m vacuum_eval.run_episode --experiment "demo_$(date +%H%M%S)" --world "$SCEN" \
     --method scripted_goals --goal-list scenario --nav-map gt --seed "$SEED" \
     --odom-noise 0 --headless 0

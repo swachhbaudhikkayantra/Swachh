@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SBY Installation Guide</title>
+<style>
+  @page { size: A4; margin: 18mm 17mm 18mm 17mm; }
+  :root { --ink:#1a1a1a; --ink2:#4d4d4d; --acc:#1F4E79; --rule:#c9d1db; --code:#f3f5f8; }
+  body { background:#fff; color:var(--ink); font-family:"Segoe UI", Calibri, Arial, sans-serif; font-size:10pt; line-height:1.45; margin:0; }
+  h1 { font-family:"Segoe UI Semibold","Segoe UI",sans-serif; font-weight:600; font-size:21pt; color:var(--ink); margin:0 0 2pt; }
+  .sub { color:var(--ink2); font-size:10.5pt; margin:0 0 4pt; }
+  .meta { color:var(--ink2); font-size:9pt; border-bottom:1.5pt solid var(--acc); padding-bottom:8pt; margin-bottom:12pt; }
+  h2 { font-family:"Segoe UI Semibold","Segoe UI",sans-serif; font-weight:600; font-size:14pt; color:var(--acc); margin:18pt 0 6pt; border-bottom:0.75pt solid var(--rule); padding-bottom:3pt; page-break-after:avoid; }
+  h3 { font-family:"Segoe UI Semibold","Segoe UI",sans-serif; font-weight:600; font-size:11pt; margin:12pt 0 4pt; page-break-after:avoid; }
+  p { margin:0 0 6pt; }
+  ul, ol { margin:0 0 6pt; padding-left:16pt; }
+  li { margin:0 0 2pt; }
+  code { font-family:Consolas, "Courier New", monospace; font-size:9pt; background:var(--code); padding:0 2pt; }
+  pre { font-family:Consolas, "Courier New", monospace; font-size:8.8pt; background:var(--code); border-left:2.5pt solid var(--acc); padding:6pt 8pt; margin:4pt 0 8pt; white-space:pre-wrap; page-break-inside:avoid; line-height:1.4; }
+  pre .c { color:#5f6b7a; }
+  table { border-collapse:collapse; width:100%; margin:4pt 0 10pt; font-size:9pt; page-break-inside:avoid; }
+  th { text-align:left; font-family:"Segoe UI Semibold","Segoe UI",sans-serif; font-weight:600; border-top:1.25pt solid var(--ink); border-bottom:0.75pt solid var(--ink); padding:3pt 6pt; }
+  td { border-bottom:0.5pt solid var(--rule); padding:3pt 6pt; vertical-align:top; }
+  tr:last-child td { border-bottom:1.25pt solid var(--ink); }
+  th + th, td + td { border-left:0.5pt solid var(--rule); }
+  td:first-child, th:first-child { padding-left:0; }
+  .note { border-left:2.5pt solid #17806D; padding:3pt 8pt; margin:6pt 0 10pt; color:var(--ink); background:#f2f8f6; page-break-inside:avoid; }
+  .warn { border-left:2.5pt solid #A33A2B; padding:3pt 8pt; margin:6pt 0 10pt; background:#fbf3f2; page-break-inside:avoid; }
+  .pb { page-break-before:always; }
+  .toc li { margin:0; }
+</style>
+</head>
+<body>
+
+<h1>Swachh Bauddhika Yantra: Installation Guide</h1>
+<p class="sub">Installation files and step-by-step instructions for the navigation subsystem (simulation), the trash detection subsystem and manual mode (HMI and Arduino firmware)</p>
+<p class="meta">Department of Computer Science and Engineering, BMS College of Engineering &nbsp;|&nbsp; Repository: <code>github.com/swachhbaudhikkayantra/Swachh</code> &nbsp;|&nbsp; All commands, paths and versions are taken from the repository's own scripts and README.</p>
+
+<h2>Contents</h2>
+<ol class="toc">
+  <li>What gets installed</li>
+  <li>Get the code</li>
+  <li>Installation files in the repository</li>
+  <li>Part A: Navigation subsystem (ROS 2 + Gazebo simulation)</li>
+  <li>Part B: Trash detection subsystem</li>
+  <li>Part C: Manual mode (touchscreen HMI and Arduino firmware)</li>
+  <li>Troubleshooting and known issues</li>
+</ol>
+
+<h2>1. What gets installed</h2>
+<table>
+  <tr><th style="width:24%">Part</th><th style="width:28%">Runs on</th><th>Status</th></tr>
+  <tr><td>A. Navigation subsystem</td><td>Ubuntu 24.04 PC, ROS 2 Jazzy, Gazebo Harmonic</td><td>Built and evaluated in simulation (Gazebo). Not yet run on the physical robot.</td></tr>
+  <tr><td>B. Trash detection subsystem</td><td>Python 3 machine; benchmarked on a Jetson Orin Nano</td><td>Three trained detectors (YOLOv8n, YOLOv11n-seg, RF-DETR) with demo and benchmark apps.</td></tr>
+  <tr><td>C. Manual mode</td><td>Robot computer with a touchscreen + Arduino Uno</td><td>Implemented on hardware. The firmware drives the two motors; vacuum, arm, wiper and UV commands are accepted as flags only.</td></tr>
+</table>
+<p>The three parts are independent: each can be installed on its own.</p>
+
+<h2>2. Get the code</h2>
+<p>The model weights and map files are stored with Git LFS, so install it before cloning.</p>
+<pre>sudo apt install -y git git-lfs
+git lfs install
+git clone https://github.com/swachhbaudhikkayantra/Swachh.git ~/Swachh
+cd ~/Swachh
+git lfs pull                 <span class="c"># fetches model weights (.pt, .onnx, .trt) and .npz files</span></pre>
+<p>All paths below assume the repository is at <code>~/Swachh</code>. Two folder names contain a space (<code>Object Detection</code>, <code>Manual mode</code>), so keep them in quotes.</p>
+
+<h2>3. Installation files in the repository</h2>
+<table>
+  <tr><th style="width:44%">File</th><th>What it does</th></tr>
+  <tr><td><code>Navigation/Simulation/scripts/setup_machine.sh</code></td><td>Main installer for Part A: apt packages, DDS socket buffers, <code>~/.bashrc</code> lines, rosdep, colcon build, unit tests. Supports <code>--dry-run</code> and <code>--yes</code>.</td></tr>
+  <tr><td><code>Navigation/Simulation/scripts/preflight.sh</code></td><td>Read-only check that the machine is ready; every line should say PASS.</td></tr>
+  <tr><td><code>Navigation/Simulation/scripts/check_gpu_render.sh</code></td><td>Checks whether Gazebo can render on the GPU.</td></tr>
+  <tr><td><code>Navigation/cyclone_dds.xml</code></td><td>CycloneDDS middleware configuration used by every ROS 2 terminal.</td></tr>
+  <tr><td><code>Navigation/Simulation/vacuum_ws/src/</code></td><td>The ROS 2 workspace: 11 packages (robot model, worlds, bringup, SLAM, Nav2, frontier explorer, evaluation, utilities).</td></tr>
+  <tr><td><code>demo/*.sh</code></td><td>One-command demos (manual driving, exploration, saved maps, obstacle avoidance, world tour).</td></tr>
+  <tr><td><code>Object Detection/requirements.txt</code></td><td>Python packages for Part B.</td></tr>
+  <tr><td><code>Object Detection/run.sh</code></td><td>Installs the requirements and opens a menu of the detection apps.</td></tr>
+  <tr><td><code>Object Detection/Model weights/</code></td><td>Trained weights: <code>Yolov8/</code>, <code>Yolov11/</code>, <code>Rfdetr/</code> (PyTorch, ONNX FP32/FP16/INT8 and TensorRT engines).</td></tr>
+  <tr><td><code>Navigation/Manual mode/hmi/scripts/setup.sh</code></td><td>Installer for Part C: build tools, GTK4, arduino-cli, serial-port permission.</td></tr>
+  <tr><td><code>Navigation/Manual mode/hmi/scripts/run.sh</code></td><td>Builds the HMI if needed, finds the Arduino port and starts the HMI.</td></tr>
+  <tr><td><code>Navigation/Manual mode/arduino/swacch_robot/swacch_robot.ino</code></td><td>Arduino Uno firmware (motor control, serial protocol, emergency stop).</td></tr>
+</table>
+
+<h2>4. Part A: Navigation subsystem (ROS 2 + Gazebo)</h2>
+<h3>4.1 Requirements</h3>
+<table>
+  <tr><th style="width:24%">Item</th><th>Requirement</th></tr>
+  <tr><td>Operating system</td><td>Ubuntu 24.04 (needed by ROS 2 Jazzy)</td></tr>
+  <tr><td>ROS 2</td><td>Jazzy (<code>ros-jazzy-desktop</code>, <code>ros-dev-tools</code>)</td></tr>
+  <tr><td>Simulator</td><td>Gazebo Harmonic (gz-sim 8.x)</td></tr>
+  <tr><td>Mapping and navigation</td><td><code>rtabmap_ros</code>, Nav2 (with <code>SmacPlannerHybrid</code>), <code>spatio-temporal-voxel-layer</code></td></tr>
+  <tr><td>Middleware</td><td>CycloneDDS (<code>rmw_cyclonedds_cpp</code>)</td></tr>
+  <tr><td>Python</td><td>3.12 with numpy, scipy, matplotlib, PIL, yaml, pytest, cv2</td></tr>
+  <tr><td>GPU</td><td>Optional. NVIDIA driver 570+ recommended; without a GPU Gazebo uses slow software rendering.</td></tr>
+  <tr><td>Compute</td><td>The CPU is the limit. The evaluation machine had 22 GB RAM and 16 threads.</td></tr>
+</table>
+
+<h3>4.2 Step 1: install ROS 2 Jazzy</h3>
+<p>Add the ROS 2 apt repository and install Jazzy by following the official guide: <code>docs.ros.org/en/jazzy/Installation/Ubuntu-Install-Debs.html</code>. The installer in step 2 stops if <code>/opt/ros/jazzy</code> is missing.</p>
+
+<h3>4.3 Step 2: run the installer</h3>
+<pre>cd ~/Swachh/Navigation/Simulation/scripts
+./setup_machine.sh --dry-run      <span class="c"># shows every change, changes nothing</span>
+./setup_machine.sh                <span class="c"># asks before each apt install</span>
+source ~/.bashrc
+./preflight.sh                    <span class="c"># read-only; every line should say PASS</span></pre>
+<p>What <code>setup_machine.sh</code> does, in order:</p>
+<ol>
+  <li>Detects the platform (native Ubuntu or WSL2) and the GPU.</li>
+  <li>Installs missing apt packages: <code>ros-jazzy-desktop</code>, <code>ros-jazzy-ros-gz</code>, <code>ros-jazzy-gz-ros2-control</code>, <code>ros-jazzy-ros2-control</code>, <code>ros-jazzy-ros2-controllers</code>, <code>ros-jazzy-navigation2</code>, <code>ros-jazzy-nav2-bringup</code>, <code>ros-jazzy-rtabmap-ros</code>, <code>ros-jazzy-depthimage-to-laserscan</code>, <code>ros-jazzy-topic-tools</code>, <code>ros-jazzy-rmw-cyclonedds-cpp</code>, <code>ros-jazzy-spatio-temporal-voxel-layer</code>, <code>python3-psutil</code>, <code>python3-scipy</code>, <code>python3-matplotlib</code>, <code>python3-pil</code>, <code>python3-yaml</code>, <code>python3-pytest</code>, <code>mesa-utils</code>, <code>python3-colcon-common-extensions</code>, <code>python3-rosdep</code>.</li>
+  <li>Sets the DDS socket buffers to 32 MB in <code>/etc/sysctl.d/90-ros2-dds.conf</code>. On WSL2 it also re-applies them at boot through <code>/etc/wsl.conf</code>.</li>
+  <li>Adds the ROS, workspace and CycloneDDS lines to <code>~/.bashrc</code>.</li>
+  <li>Runs <code>rosdep</code> for the workspace dependencies.</li>
+  <li>Builds the workspace with <code>colcon build --symlink-install</code>.</li>
+  <li>Runs the evaluation-harness unit tests.</li>
+</ol>
+
+<h3>4.4 Alternative: build by hand</h3>
+<pre>cd ~/Swachh/Navigation/Simulation/vacuum_ws
+source /opt/ros/jazzy/setup.bash
+rosdep install --from-paths src --ignore-src -r -y
+colcon build --symlink-install
+source install/setup.bash</pre>
+<div class="warn"><b>Required DDS setting.</b> If you build by hand, also set <code>net.core.rmem_max=33554432</code> (as the installer does). Without it, SLAM silently receives no camera images.</div>
+
+<h3>4.5 In every new terminal</h3>
+<pre>source /opt/ros/jazzy/setup.bash
+source ~/Swachh/Navigation/Simulation/vacuum_ws/install/setup.bash
+export RMW_IMPLEMENTATION=rmw_cyclonedds_cpp
+export CYCLONEDDS_URI=file://$HOME/Swachh/Navigation/cyclone_dds.xml
+export ROS_DOMAIN_ID=0
+<span class="c"># over SSH with no display, also:</span>
+export VACUUM_GZ_HEADLESS_RENDERING=1</pre>
+<p>If you ran <code>setup_machine.sh</code>, the first four lines are already in <code>~/.bashrc</code>.</p>
+
+<h3>4.6 Verify the installation</h3>
+<pre><span class="c"># readiness check</span>
+bash ~/Swachh/Navigation/Simulation/scripts/preflight.sh
+<span class="c"># evaluation harness unit tests</span>
+cd ~/Swachh/Navigation/Simulation/vacuum_ws/src/vacuum_eval &amp;&amp; python3 -m pytest test -q</pre>
+
+<h3>4.7 Run it</h3>
+<pre><span class="c"># 1. Gazebo + robot + controllers</span>
+ros2 launch vacuum_bringup sim.launch.py world:=office
+<span class="c"># 2. SLAM on top (second terminal)</span>
+ros2 launch vacuum_slam slam.launch.py environment:=office use_rviz:=false
+<span class="c"># 3. Autonomous frontier exploration (full stack: SLAM + frontier explorer + Nav2)</span>
+ros2 launch vacuum_exploration exploration.launch.py environment:=office
+<span class="c"># 4. Navigation on a saved map (after sim.launch.py with use_sim_time:=true)</span>
+ros2 launch vacuum_nav2 nav2_localization.launch.py map_path:=$HOME/maps/stage5/office.yaml environment:=office</pre>
+<p>Save a map while the simulation runs: <code>ros2 run nav2_map_server map_saver_cli -f ~/maps/stage5/office</code>.</p>
+<p>Worlds: <code>apartment</code>, <code>cluttered_room</code>, <code>corridor</code>, <code>empty_room</code>, <code>empty_world</code>, <code>maze_dead_ends</code>, <code>multi_room_loop</code>, <code>office</code>, <code>symmetric_hall</code>, <code>two_rooms_door</code>, plus obstacle-avoidance scenarios with the <code>avoid_</code> prefix (for example <code>avoid_u_trap</code>, <code>avoid_dynamic_sudden</code>).</p>
+
+<h3>4.8 One-command demos</h3>
+<p>The scripts in <code>~/Swachh/demo</code> set up ROS and DDS themselves. Press Ctrl+C once to stop everything a script started. Run one simulation at a time.</p>
+<table>
+  <tr><th style="width:34%">Command</th><th>Shows</th></tr>
+  <tr><td><code>./manual.sh</code></td><td>Manual mode in simulation: you steer the robot and the map grows</td></tr>
+  <tr><td><code>./explore.sh</code></td><td>Autonomous frontier exploration with a live map</td></tr>
+  <tr><td><code>./oldmap.sh [world]</code></td><td>The completed map of a previous evaluation run</td></tr>
+  <tr><td><code>./avoid.sh [scenario] [seed]</code></td><td>Obstacle avoidance</td></tr>
+  <tr><td><code>./tour.sh</code> / <code>./world.sh &lt;name&gt;</code></td><td>Several worlds, one after another / a single world</td></tr>
+  <tr><td><code>./stop.sh</code></td><td>Cleans up programs left behind by a closed terminal</td></tr>
+</table>
+
+<h2>5. Part B: Trash detection subsystem</h2>
+<h3>5.1 Requirements</h3>
+<p>Python 3 with pip. Packages from <code>Object Detection/requirements.txt</code>:</p>
+<table>
+  <tr><th style="width:34%">Package</th><th>Version</th></tr>
+  <tr><td><code>streamlit</code></td><td>&ge; 1.32.0</td></tr>
+  <tr><td><code>opencv-python</code></td><td>&ge; 4.8.0</td></tr>
+  <tr><td><code>onnxruntime</code></td><td>&ge; 1.17.0 (for a CUDA GPU, use <code>onnxruntime-gpu</code> &ge; 1.17.0 instead)</td></tr>
+  <tr><td><code>numpy</code></td><td>&ge; 1.21.0</td></tr>
+  <tr><td><code>scipy</code></td><td>&ge; 1.8.0</td></tr>
+  <tr><td><code>psutil</code></td><td>&ge; 5.9.0</td></tr>
+</table>
+
+<h3>5.2 Install and run</h3>
+<pre>cd "$HOME/Swachh/Object Detection"
+python3 -m venv .venv &amp;&amp; source .venv/bin/activate     <span class="c"># optional, keeps packages separate</span>
+pip install -r requirements.txt
+bash run.sh</pre>
+<p><code>run.sh</code> installs the requirements and offers a menu:</p>
+<table>
+  <tr><th style="width:8%">#</th><th style="width:38%">App</th><th>Direct command</th></tr>
+  <tr><td>1</td><td>Live detection UI</td><td><code>streamlit run app.py</code></td></tr>
+  <tr><td>2</td><td>Scientific benchmark UI</td><td><code>streamlit run benchmark.py</code></td></tr>
+  <tr><td>3</td><td>Raspberry Pi camera sender</td><td><code>streamlit run rpi_sender.py</code></td></tr>
+  <tr><td>4 (default)</td><td>Terminal benchmark</td><td><code>python3 cli_benchmark.py --frames 150 --runs 3 --warmup 10</code></td></tr>
+</table>
+
+<h3>5.3 Model weights</h3>
+<table>
+  <tr><th style="width:22%">Folder</th><th>Files</th></tr>
+  <tr><td><code>Yolov8/</code></td><td><code>best.pt</code>, <code>best_fp32.onnx</code>, <code>best_fp16.onnx</code>, <code>best_int8.onnx</code>, TensorRT engines <code>best_fp32_fp16.trt</code>, <code>best_fp32_int8.trt</code></td></tr>
+  <tr><td><code>Yolov11/</code></td><td><code>best_fp32.onnx</code>, <code>best_fp16.onnx</code>, TensorRT engine <code>best_fp32_fp16.trt</code></td></tr>
+  <tr><td><code>Rfdetr/</code></td><td><code>rfdetr_fp32.onnx</code>, <code>rfdetr_fp16.onnx</code>, <code>rfdetr_int8.onnx</code>, <code>hparams.yaml</code>, <code>training_config.json</code></td></tr>
+</table>
+<div class="note">TensorRT engines (<code>.trt</code>) are tied to the GPU and TensorRT version they were built on. On a different device, use the ONNX files or rebuild the engines there.</div>
+
+<h2>6. Part C: Manual mode (HMI and Arduino firmware)</h2>
+<h3>6.1 Install the HMI (robot computer)</h3>
+<pre>cd "$HOME/Swachh/Navigation/Manual mode/hmi"
+bash scripts/setup.sh</pre>
+<p><code>setup.sh</code> installs <code>build-essential</code>, <code>cmake</code>, <code>pkg-config</code> and <code>libgtk-4-dev</code>, installs <code>arduino-cli</code> if missing, and adds the user to the <code>dialout</code> group for serial access. <b>Log out and back in (or reboot)</b> afterwards so the group change takes effect.</p>
+
+<h3>6.2 Upload the firmware to the Arduino Uno</h3>
+<ol>
+  <li>Open <code>Navigation/Manual mode/arduino/swacch_robot/swacch_robot.ino</code> in the Arduino IDE.</li>
+  <li>Select the board <b>Arduino Uno</b> and its serial port.</li>
+  <li>Click <b>Upload</b>. The repository has no flashing script.</li>
+</ol>
+<p>Wiring used by the firmware: motor PWM on pins 5 and 6, direction relays on pins 7 and 8.</p>
+
+<h3>6.3 Run</h3>
+<pre>cd "$HOME/Swachh/Navigation/Manual mode/hmi"
+bash scripts/run.sh</pre>
+<p><code>run.sh</code> compiles the HMI on the first run (CMake), finds the Arduino on <code>/dev/ttyUSB*</code> or <code>/dev/ttyACM*</code> and starts the touchscreen interface. Without an Arduino connected, it starts without hardware.</p>
+
+<h3>6.4 Serial protocol (for testing)</h3>
+<table>
+  <tr><th style="width:28%">Setting</th><th>Value</th></tr>
+  <tr><td>Link</td><td>115200 baud, newline-terminated text commands</td></tr>
+  <tr><td>Motion</td><td><code>MOVE:FORWARD</code>, <code>MOVE:BACKWARD</code>, <code>MOVE:LEFT</code>, <code>MOVE:RIGHT</code>, <code>MOVE:STOP</code></td></tr>
+  <tr><td>Speed</td><td><code>SPEED:1</code> to <code>SPEED:9</code></td></tr>
+  <tr><td>Safety</td><td><code>ESTOP</code> stops the motors and blocks motion until <code>RESET</code></td></tr>
+  <tr><td>Replies</td><td><code>ACK:&lt;command&gt;</code> for each command, and <code>STATUS:</code> lines every second</td></tr>
+</table>
+
+<h2>7. Troubleshooting and known issues</h2>
+<table>
+  <tr><th style="width:36%">Symptom or issue</th><th>What to do</th></tr>
+  <tr><td>SLAM shows no map; no camera images arrive</td><td>The DDS socket buffer is too small. Set <code>net.core.rmem_max=33554432</code> (section 4.3).</td></tr>
+  <tr><td>Gazebo is very slow</td><td>No GPU, so software rendering is in use. Use a machine with an NVIDIA GPU (driver 570+), and run only one or two simulations at a time.</td></tr>
+  <tr><td>A demo script refuses to start</td><td>Something from an earlier run is still running. Run <code>~/Swachh/demo/stop.sh</code>.</td></tr>
+  <tr><td><code>Navigation/run_mapping.sh</code> and <code>save_map.sh</code> fail</td><td>They hard-code paths from another machine. Use the direct <code>ros2 launch</code> and <code>map_saver_cli</code> commands in section 4.7.</td></tr>
+  <tr><td><code>Navigation/stop.sh</code></td><td>Force-kills processes and deletes <code>~/.ros/rtabmap.db*</code>. Do not use it during an evaluation run.</td></tr>
+  <tr><td><code>Navigation/start.sh</code> opens no windows</td><td>It needs the <code>ptyxis</code> terminal. Without it, use the direct commands in section 4.7.</td></tr>
+  <tr><td>Model files are tiny text files</td><td>Git LFS content was not fetched. Run <code>git lfs install</code> and <code>git lfs pull</code>.</td></tr>
+  <tr><td>HMI cannot open the serial port</td><td>Log out and in after <code>setup.sh</code> so the <code>dialout</code> group applies; check the cable and port.</td></tr>
+  <tr><td>Some <code>Navigation</code> pytest vision tests fail</td><td>They import camera code that moved to <code>Object Detection/Camera/</code>; these failures are stale tests, not a runtime fault.</td></tr>
+</table>
+
+</body>
+</html>

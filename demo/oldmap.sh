@@ -20,8 +20,7 @@ RUN="$REPO/results/runs/quick_exploration_noise/$W/frontier/seed_$SEED"
 [[ -f $RUN/maps/final_map.npz ]] || { echo "Missing $RUN/maps/final_map.npz"; exit 1; }
 FIG="$REPO/docs/paper_out/figures/fig_actual_vs_explored.png"
 
-trap 'stop_bg' EXIT
-trap 'exit 130' INT TERM
+install_cleanup
 
 start_bg rviz ros2 run rviz2 rviz2 -d "$RVIZ_CFG" --ros-args -p use_sim_time:=false
 

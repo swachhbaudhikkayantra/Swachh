@@ -12,8 +12,7 @@ pick_world "${1:-office}"
 VIZ=0; [[ "${2:-}" == "--viz" ]] && VIZ=1
 require_clean
 
-trap 'stop_bg' EXIT
-trap 'exit 130' INT TERM
+install_cleanup
 
 DB="$HOME/.ros/swachh_demo_rtabmap.db"
 rm -f "$DB"

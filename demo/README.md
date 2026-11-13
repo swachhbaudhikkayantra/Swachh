@@ -1,8 +1,12 @@
 # Swachh demo: scripts and methodology
 
 Run everything from this folder: `cd ~/Swachh/demo`. Each script sets up ROS, the workspace and the DDS
-settings itself. Default world is `office`. **Ctrl+C stops a script; `./stop.sh` cleans up leftovers.**
-Run only one simulation at a time (a script refuses to start if Gazebo is already running).
+settings itself. Default world is `office`. **Press Ctrl+C once: the script stops everything it started
+(Gazebo, ROS nodes, RViz, harness, windows) and exits. It takes about 3-25 s; extra Ctrl+C presses are ignored
+while it cleans up.** You do not need a second terminal. `./stop.sh` exists only for the case where a terminal
+was closed or killed and left programs behind.
+Run only one simulation at a time: a script refuses to start while anything from an earlier run is still running,
+and lists what it found.
 
 Do the demo on `victus` (RTX 5050). On the WSL2 laptop without a GPU the simulator ran at about a quarter of
 real time, and RViz's map display raised a shader error (see Troubleshooting).
@@ -19,7 +23,7 @@ real time, and RViz's map display raised a shader error (see Troubleshooting).
 
 Helpers: `./status.sh` (live explorer status, second terminal), `./savemap.sh [world]` (save the live map to
 `~/maps/stage5/`), `./navigate.sh [world]` (Nav2 + AMCL on a saved map), `./steer.sh` (steering buttons only),
-`./stop.sh [--force]`.
+`./stop.sh` (leftover cleanup only).
 
 Worlds for `world.sh` / `tour.sh`: apartment office corridor empty_room cluttered_room two_rooms_door
 multi_room_loop maze_dead_ends symmetric_hall, and the avoidance worlds avoid_u_trap avoid_dynamic_sudden
@@ -152,7 +156,7 @@ Run each once on `victus` before presenting.
   (`sudo sysctl -w net.core.rmem_max=33554432`). Each script warns if it is too small.
 - **No window over SSH:** the scripts switch Gazebo to headless rendering when there is no display; RViz and the
   steering window are skipped.
-- **A script says Gazebo is already running:** `./stop.sh` (add `--force` if something survives 10 s). It refuses
-  to touch anything while an evaluation run (`run_batch`/`run_episode`) is active.
+- **A script says something from an earlier run is still running:** `./stop.sh` (it escalates polite stop, terminate,
+  kill). It refuses to touch anything while an evaluation campaign (`run_batch`) is active.
 - **Logs** of background parts: `~/.cache/swachh_demo/*.log` (sim, slam, rviz, steer_gui, publisher, figure).
 - **Spawn somewhere else:** `SPAWN_X=1 SPAWN_Y=2 ./explore.sh office`.

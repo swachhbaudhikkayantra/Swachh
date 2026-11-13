@@ -9,8 +9,7 @@ pick_world "${1:-office}"
 TURNS="${2:-1}"
 RATE="${3:-0.5}"
 require_clean
-trap 'stop_bg' EXIT
-trap 'exit 130' INT TERM
+install_cleanup
 
 DB="$HOME/.ros/swachh_demo_rtabmap.db"
 rm -f "$DB"
